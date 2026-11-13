@@ -63,3 +63,4 @@ Origem: Portaria GM/MDIC nº 325, de 6 de novembro de 2026 (`portaria-325-2026.p
 | Peso aproveitado | Soma dos pesos por destino sobre o peso total destinado |
 | Meta de aproveitamento | Gera alerta, não bloqueia o certificado (o descumprimento é apurado pelo MDIC, art. 17 §2º) |
 | Dia útil | Segunda a sexta, sem calendário de feriados |
+| Evidência de classificação | Todo tipo diferente de `SUCATA_INSERVIVEL`, inclusive o veículo licenciado em condições de rodagem, exige evidência de classificação (art. 6º I c). Sem ela, o veículo é tratado como sucata inservível, com o tipo declarado preservado. Isso estende ao veículo licenciado a regra do art. 2º §5º, que a portaria aplica só a sucata e sinistrado |

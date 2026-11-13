@@ -6,6 +6,8 @@ Erros seguem `{ "detail": "mensagem", "codigo": "CODIGO_ESTAVEL", "pendencias": 
 
 Listas aceitam `?pagina=1&tamanho=20` e devolvem `{ "itens": [], "total": 0 }`.
 
+Todo valor `Decimal` (URV, fator, preço, peso, percentual) trafega como string JSON, por exemplo `"0.94"` e `"150000.00"`, nas respostas e de preferência também nas entradas. Isso evita perda de precisão de ponto flutuante.
+
 ## Fundação
 
 | Método e rota | Papel | Entrada | Saída |
@@ -14,9 +16,11 @@ Listas aceitam `?pagina=1&tamanho=20` e devolvem `{ "itens": [], "total": 0 }`.
 | `GET /auth/me` | todos | | `id`, `nome`, `email`, `papel`, `empresa` |
 | `POST /empresas` | ADMIN | `cnpj`, `razao_social`, `tipo`, `registro_compromissos?` | Empresa |
 | `GET /empresas` | ADMIN, AUDITOR; demais veem contrapartes com vínculo | `?tipo=` | Lista de Empresa |
+| `PATCH /empresas/{id}` | ADMIN | `registro_compromissos` | Empresa. 422 se a empresa não é FABRICANTE |
 | `PATCH /empresas/{id}/credenciamento` | ADMIN | `status`, `validade` | Empresa |
 | `POST /vinculos` | ADMIN | `geradora_id`, `fabricante_id` | Vinculo |
 | `GET /vinculos` | todos (filtrado pela empresa) | | Lista de Vinculo |
+| `PATCH /vinculos/{id}` | ADMIN | `ativo` | Vinculo |
 | `GET /auditoria/eventos` | AUDITOR, ADMIN | `?entidade=&entidade_id=&tipo=` | Lista de Evento |
 | `GET /auditoria/verificar` | AUDITOR, ADMIN | | `integra`, `total`, `primeira_quebra` |
 | `GET /configuracao/fatores` | todos | | Lista de `tipo`, `fator` e `preco_base` |
@@ -27,10 +31,10 @@ Papel: DESMONTADORA e RECICLADORA escrevem nos próprios veículos; AUDITOR e AD
 
 | Método e rota | Entrada | Saída e regras |
 | --- | --- | --- |
-| `POST /veiculos` | `chassi`, `placa`, `renavam`, `data_entrada`, `tipo`, `origem_aquisicao`, `documento_entrada_tipo`, `documento_entrada_numero`, `certidao_baixa_numero`, `peso_entrada_kg`, `sem_viabilidade_desmontagem` | Veiculo. 409 `CHASSI_DUPLICADO`. Rebaixa para `SUCATA_INSERVIVEL` enquanto não houver laudo de classificação, com `tipo_declarado` preservado |
+| `POST /veiculos` | `chassi`, `placa`, `renavam`, `data_entrada`, `tipo`, `origem_aquisicao`, `documento_entrada_tipo`, `documento_entrada_numero`, `certidao_baixa_numero`, `peso_entrada_kg`, `sem_viabilidade_desmontagem` | Veiculo. 409 `CHASSI_DUPLICADO`. Todo tipo diferente de `SUCATA_INSERVIVEL` (inclusive `LICENCIADO_RODAGEM`) é rebaixado para `SUCATA_INSERVIVEL` enquanto não houver anexo `EVIDENCIA_CLASSIFICACAO`, com `tipo_declarado` preservado |
 | `GET /veiculos` | `?estado=&chassi=` | Lista de Veiculo |
 | `GET /veiculos/{id}` | | Veiculo com `etapas`, `anexos`, `pendencias_certificado`, `percentual_aproveitado` |
-| `POST /veiculos/{id}/anexos` | multipart: `arquivo`, `tipo`, `etapa_tipo` | Anexo. Anexar `LAUDO_CLASSIFICACAO` aplica o `tipo_declarado` |
+| `POST /veiculos/{id}/anexos` | multipart: `arquivo`, `tipo`, `etapa_tipo` | Anexo. Anexar `EVIDENCIA_CLASSIFICACAO` aplica o `tipo_declarado` |
 | `GET /anexos/{id}/arquivo` | | Arquivo |
 | `PUT /veiculos/{id}/etapas/{tipo}` | `iniciada_em`, `concluida_em?`, `observacoes?` | Etapa |
 | `POST /veiculos/{id}/pecas` | `nome`, `descricao`, `classificacao`, `condicao`, `destino` | Peca. Reutilizável recebe `codigo_rastreio` e `etiqueta` (`nome`, `chassi`, `data`, `cnpj`, `codigo`) |

@@ -32,7 +32,7 @@ Todas as tabelas têm `id` (UUID) e `criado_em`. Tipos monetários e de URV: `NU
 | `mmv` | `fabricante_id`, `codigo`, `ncm`, `nivel` (1 ou 2), `percentual_reciclabilidade`, `ja_comercializado`, `efeitos_a_partir_de`, `status` (ATIVO, RETIRADO) | `(fabricante_id, codigo)` único |
 | `veiculo` | `empresa_id`, `chassi` único, `placa`, `renavam`, `data_entrada`, `tipo_declarado`, `tipo` (o efetivo, usado no fator), `origem_aquisicao`, `documento_entrada_tipo` (NF_ENTRADA, AUTO_ARREMATACAO), `documento_entrada_numero`, `certidao_baixa_numero`, `peso_entrada_kg`, `sem_viabilidade_desmontagem`, `estado` | Veículo em fim de vida |
 | `etapa` | `veiculo_id`, `tipo` (RECEPCAO, DESCONTAMINACAO, DESMONTAGEM, DESTRUICAO, DESTINACAO), `iniciada_em`, `concluida_em`, `observacoes` | `(veiculo_id, tipo)` único |
-| `anexo` | `veiculo_id`, `etapa_tipo`, `tipo` (FOTO, DOCUMENTO_ENTRADA, CERTIDAO_BAIXA, LAUDO_CLASSIFICACAO), `caminho`, `sha256`, `enviado_por` | Arquivo em volume local |
+| `anexo` | `veiculo_id`, `etapa_tipo`, `tipo` (FOTO, DOCUMENTO_ENTRADA, CERTIDAO_BAIXA, EVIDENCIA_CLASSIFICACAO), `caminho`, `sha256`, `enviado_por` | Arquivo em volume local |
 | `peca` | `veiculo_id`, `nome`, `descricao`, `classificacao` (REUTILIZAVEL, NAO_REUTILIZAVEL), `codigo_rastreio` único, `condicao` (USADA, REMANUFATURADA), `destino` (ESTOQUE, REVENDA, EXPORTACAO, REMANUFATURA, RECONDICIONAMENTO, RECICLAGEM, DESCARTE), `descaracterizada` | Reutilizável exige `codigo_rastreio`; não reutilizável exige `descaracterizada` |
 | `pesagem` | `veiculo_id`, `fracao` (FERROSO, NAO_FERROSO, NAO_METALICO, FLUIDOS, BATERIAS, PNEUS), `destino` (REAPROVEITAMENTO, RECICLAGEM, RECUPERACAO_ENERGETICA, REJEITO), `peso_kg` | |
 | `dmr` | `veiculo_id`, `numero`, `mtr_numero`, `destinatario_nome`, `destinatario_cnpj`, `tipo_material`, `peso_kg`, `emitida_em` | |
@@ -46,7 +46,7 @@ Todas as tabelas têm `id` (UUID) e `criado_em`. Tipos monetários e de URV: `NU
 | `config_parametro` | `chave` (PRECO_BASE, FIM_SALDO_NEGATIVO), `valor`, `vigente_desde` | Semeada com 150000.00 e 2027-12-31 |
 | `evento_auditoria` | `sequencia` (bigserial), `ocorrido_em`, `usuario_id`, `empresa_id`, `tipo`, `entidade`, `entidade_id`, `payload` (JSONB), `hash_anterior`, `hash` | Só inserção |
 
-`urv_lancamento` e `evento_auditoria` têm gatilho no banco que rejeita `UPDATE` e `DELETE`.
+`urv_lancamento` e `evento_auditoria` têm gatilho no banco que rejeita `UPDATE`, `DELETE` e `TRUNCATE`.
 
 ## Regras de negócio
 
@@ -61,7 +61,7 @@ Todas as tabelas têm `id` (UUID) e `criado_em`. Tipos monetários e de URV: `NU
 | `SUCATA_MOTOR_INSERVIVEL` | 0.68 |
 | `SUCATA_INSERVIVEL` | 0.38 |
 
-Sucata ou sinistrado sem anexo `LAUDO_CLASSIFICACAO` é gravado como `SUCATA_INSERVIVEL` (art. 2º §5º). Os fatores ficam em uma tabela de configuração com vigência, porque podem ser revistos (art. 3º §6º).
+Todo tipo diferente de `SUCATA_INSERVIVEL`, inclusive `LICENCIADO_RODAGEM`, exige anexo `EVIDENCIA_CLASSIFICACAO` (art. 6º I c). Sem ele, o veículo é gravado como `SUCATA_INSERVIVEL`, com `tipo_declarado` preservado; ao anexar a evidência, o `tipo_declarado` é aplicado. É o art. 2º §5º estendido ao veículo licenciado (premissa em `01-requisitos.md`). Os fatores ficam em uma tabela de configuração com vigência, porque podem ser revistos (art. 3º §6º).
 
 ### Estados do veículo
 
@@ -76,7 +76,7 @@ As etapas são registros independentes, não uma fila rígida, porque a portaria
 3. Etapa DESCONTAMINACAO concluída, com ao menos uma foto.
 4. Etapa DESMONTAGEM concluída com ao menos uma foto, ou `sem_viabilidade_desmontagem` verdadeiro.
 5. Toda peça reutilizável com código de rastreio; toda não reutilizável descaracterizada.
-6. Etapa DESTRUICAO concluída, com ao menos uma pesagem.
+6. Etapa DESTRUICAO concluída, com ao menos uma pesagem e ao menos uma foto (é a separação dos materiais; art. 6º III c, Anexo III 15.c).
 7. Laudo assinado.
 8. Chassi sem certificado anterior (RF-21).
 
@@ -112,14 +112,14 @@ urv_debito = (qv / rm) * max(1, pm / pb)      # quantizado em 0.01, ROUND_HALF_U
 
 1. Obtém `pg_advisory_xact_lock` para serializar a cadeia.
 2. Lê o `hash` do último evento (ou 64 zeros).
-3. Calcula `hash = sha256(hash_anterior + json_canonico(ocorrido_em, usuario_id, tipo, entidade, entidade_id, payload))`, com chaves ordenadas e sem espaços.
+3. Calcula `hash = sha256(hash_anterior + json_canonico(ocorrido_em, usuario_id, empresa_id, tipo, entidade, entidade_id, payload))`, com chaves ordenadas e sem espaços. `empresa_id` entra no hash para que trocar a empresa de um evento também quebre a cadeia.
 4. Insere na mesma transação da operação de negócio.
 
 `GET /auditoria/verificar` percorre a cadeia e devolve `{integra, total, primeira_quebra}`. O script `scripts/adulterar.py` desliga o gatilho, altera um evento e mostra a verificação acusando a quebra.
 
 ## Segurança
 
-- JWT com papel e `empresa_id`. Toda consulta de empresa filtra por `empresa_id` do token; AUDITOR e ADMIN leem tudo; AUDITOR nunca escreve.
+- JWT com papel e `empresa_id`. Toda consulta de empresa filtra por `empresa_id` do token; AUDITOR e ADMIN leem tudo; AUDITOR nunca escreve: `usuario_atual` devolve 403 `AUDITOR_SOMENTE_LEITURA` para AUDITOR em qualquer método diferente de GET, HEAD e OPTIONS, em todas as rotas.
 - Upload: tipos permitidos (imagem, PDF), limite de 10 MB, nome de arquivo gerado, `sha256` gravado.
 - Dados pessoais: nome e e-mail de usuários, nome e registro do responsável técnico. Nada além disso.
 
