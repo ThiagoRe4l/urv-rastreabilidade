@@ -1,0 +1,57 @@
+[project]
+name = "urv-rastreabilidade"
+version = "0.1.0"
+description = "Rastreabilidade da desmontagem e reciclagem de veículos e livro de URV (Portaria GM/MDIC nº 325/2026)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7,<3",
+    "pydantic-settings>=2.4",
+    "sqlalchemy>=2.0.30,<2.1",
+    "alembic>=1.13",
+    "psycopg[binary]>=3.2",
+    "pyjwt>=2.8",
+    "bcrypt>=4.1",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "httpx>=0.27",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*", "scripts*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-ra --import-mode=importlib"
+filterwarnings = [
+    "error::sqlalchemy.exc.SAWarning",
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["B008", "S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106"]
+"scripts/**" = ["S105", "S106", "T201"]
+
+[tool.ruff.lint.isort]
+# A pasta alembic/ do projeto confunde a detecção; o pacote alembic é de terceiros.
+known-third-party = ["alembic"]
