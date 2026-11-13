@@ -1,0 +1,135 @@
+"""Enums do domínio. Valores em maiúsculas, sem acento, como no contrato."""
+
+from enum import StrEnum
+
+
+class TipoEmpresa(StrEnum):
+    FABRICANTE = "FABRICANTE"  # inclui importador
+    DESMONTADORA = "DESMONTADORA"
+    RECICLADORA = "RECICLADORA"
+
+
+class CredenciamentoStatus(StrEnum):
+    PENDENTE = "PENDENTE"
+    ATIVO = "ATIVO"
+    SUSPENSO = "SUSPENSO"
+    CANCELADO = "CANCELADO"
+
+
+class Papel(StrEnum):
+    ADMIN = "ADMIN"
+    DESMONTADORA = "DESMONTADORA"
+    RECICLADORA = "RECICLADORA"
+    FABRICANTE = "FABRICANTE"
+    AUDITOR = "AUDITOR"
+
+
+PAPEIS_SEM_EMPRESA = (Papel.ADMIN, Papel.AUDITOR)
+
+
+class MmvStatus(StrEnum):
+    ATIVO = "ATIVO"
+    RETIRADO = "RETIRADO"
+
+
+class TipoVeiculo(StrEnum):
+    """Art. 3º §2º."""
+
+    LICENCIADO_RODAGEM = "LICENCIADO_RODAGEM"
+    SINISTRADO_PEQUENA_MEDIA = "SINISTRADO_PEQUENA_MEDIA"
+    SUCATA_APROVEITAVEL = "SUCATA_APROVEITAVEL"
+    SINISTRADO_GRANDE = "SINISTRADO_GRANDE"
+    SUCATA_MOTOR_INSERVIVEL = "SUCATA_MOTOR_INSERVIVEL"
+    SUCATA_INSERVIVEL = "SUCATA_INSERVIVEL"
+
+
+class OrigemAquisicao(StrEnum):
+    """Art. 18 I: compra direta, leilões de órgãos públicos ou de seguradoras."""
+
+    COMPRA_DIRETA = "COMPRA_DIRETA"
+    LEILAO_ORGAO_PUBLICO = "LEILAO_ORGAO_PUBLICO"
+    LEILAO_SEGURADORA = "LEILAO_SEGURADORA"
+
+
+class DocumentoEntradaTipo(StrEnum):
+    NF_ENTRADA = "NF_ENTRADA"
+    AUTO_ARREMATACAO = "AUTO_ARREMATACAO"
+
+
+class EstadoVeiculo(StrEnum):
+    RECEBIDO = "RECEBIDO"
+    EM_PROCESSO = "EM_PROCESSO"
+    LAUDO_EMITIDO = "LAUDO_EMITIDO"
+    CERTIFICADO = "CERTIFICADO"
+    ENCERRADO = "ENCERRADO"
+
+
+class EtapaTipo(StrEnum):
+    """Art. 18 III a IX. A separação dos materiais faz parte de DESTRUICAO (art. 18 VI)."""
+
+    RECEPCAO = "RECEPCAO"
+    DESCONTAMINACAO = "DESCONTAMINACAO"
+    DESMONTAGEM = "DESMONTAGEM"
+    DESTRUICAO = "DESTRUICAO"
+    DESTINACAO = "DESTINACAO"
+
+
+class AnexoTipo(StrEnum):
+    FOTO = "FOTO"
+    DOCUMENTO_ENTRADA = "DOCUMENTO_ENTRADA"
+    CERTIDAO_BAIXA = "CERTIDAO_BAIXA"
+    # Art. 6º I c: evidência da classificação, exigida para todo tipo ≠ SUCATA_INSERVIVEL.
+    EVIDENCIA_CLASSIFICACAO = "EVIDENCIA_CLASSIFICACAO"
+
+
+class PecaClassificacao(StrEnum):
+    REUTILIZAVEL = "REUTILIZAVEL"
+    NAO_REUTILIZAVEL = "NAO_REUTILIZAVEL"
+
+
+class PecaCondicao(StrEnum):
+    USADA = "USADA"
+    REMANUFATURADA = "REMANUFATURADA"
+
+
+class PecaDestino(StrEnum):
+    ESTOQUE = "ESTOQUE"
+    REVENDA = "REVENDA"
+    EXPORTACAO = "EXPORTACAO"
+    REMANUFATURA = "REMANUFATURA"
+    RECONDICIONAMENTO = "RECONDICIONAMENTO"
+    RECICLAGEM = "RECICLAGEM"
+    DESCARTE = "DESCARTE"
+
+
+class Fracao(StrEnum):
+    FERROSO = "FERROSO"
+    NAO_FERROSO = "NAO_FERROSO"
+    NAO_METALICO = "NAO_METALICO"
+    FLUIDOS = "FLUIDOS"
+    BATERIAS = "BATERIAS"
+    PNEUS = "PNEUS"
+
+
+class DestinoPesagem(StrEnum):
+    REAPROVEITAMENTO = "REAPROVEITAMENTO"
+    RECICLAGEM = "RECICLAGEM"
+    RECUPERACAO_ENERGETICA = "RECUPERACAO_ENERGETICA"
+    REJEITO = "REJEITO"
+
+
+class UrvCreditoStatus(StrEnum):
+    DISPONIVEL = "DISPONIVEL"
+    TRANSFERIDO = "TRANSFERIDO"
+
+
+class LancamentoTipo(StrEnum):
+    CREDITO = "CREDITO"
+    TRANSFERENCIA_SAIDA = "TRANSFERENCIA_SAIDA"
+    TRANSFERENCIA_ENTRADA = "TRANSFERENCIA_ENTRADA"
+    DEBITO = "DEBITO"
+
+
+class ChaveParametro(StrEnum):
+    PRECO_BASE = "PRECO_BASE"  # art. 3º §5º
+    FIM_SALDO_NEGATIVO = "FIM_SALDO_NEGATIVO"  # art. 8º §1º
