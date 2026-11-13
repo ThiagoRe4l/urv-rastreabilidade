@@ -48,6 +48,10 @@ A paralelização funciona porque cada agente é dono de pastas diferentes e tod
 9. Volte à pasta principal e faça os merges nesta ordem: `git merge feat/urv`, `git merge feat/fluxo`, `git merge feat/web`, `git merge feat/qa`.
 10. Rode `claude` na pasta principal e envie: `Integre: resolva o que está em docs/pedidos-de-mudanca.md, remova os xfail dos testes de conformidade cujas rotas já existem, desligue o mock do frontend e gere os tipos a partir do /openapi.json. Rode tudo e relate o que falhou.`
 
+### Fase 3b — Desempenho do banco
+
+10b. Com tudo integrado e os testes passando, rode `claude` na pasta principal e envie: `Leia CLAUDE.md e agents/06-desempenho-banco.md e execute.`
+
 ### Fase 4 — Revisão
 
 11. Abra uma sessão nova do `claude` e envie: `Leia agents/05-revisor.md e execute.`

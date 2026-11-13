@@ -4,6 +4,8 @@ Base: `/api/v1`. JSON em snake_case. Autenticação por `Authorization: Bearer <
 
 Erros seguem `{ "detail": "mensagem", "codigo": "CODIGO_ESTAVEL", "pendencias": ["..."] }`. `pendencias` só aparece em 422 de pré-condição.
 
+Convenções de valor: `percentual_aproveitado` vai em pontos, de 0 a 100. `origem_aquisicao` é um de `COMPRA_DIRETA`, `LEILAO_ORGAO_PUBLICO`, `LEILAO_SEGURADORA` (art. 18 I). `tipo_material` da DMR é texto livre. Fatores e parâmetros valem a partir de 2026-11-09, data de publicação da portaria.
+
 Listas aceitam `?pagina=1&tamanho=20` e devolvem `{ "itens": [], "total": 0 }`.
 
 Todo valor `Decimal` (URV, fator, preço, peso, percentual) trafega como string JSON, por exemplo `"0.94"` e `"150000.00"`, nas respostas e de preferência também nas entradas. Isso evita perda de precisão de ponto flutuante.
@@ -23,7 +25,7 @@ Todo valor `Decimal` (URV, fator, preço, peso, percentual) trafega como string 
 | `PATCH /vinculos/{id}` | ADMIN | `ativo` | Vinculo |
 | `GET /auditoria/eventos` | AUDITOR, ADMIN | `?entidade=&entidade_id=&tipo=` | Lista de Evento |
 | `GET /auditoria/verificar` | AUDITOR, ADMIN | | `integra`, `total`, `primeira_quebra` |
-| `GET /configuracao/fatores` | todos | | Lista de `tipo`, `fator` e `preco_base` |
+| `GET /configuracao/fatores` | todos | | `{itens: [{tipo, fator, vigente_desde}], total, preco_base}` |
 
 ## Fluxo do veículo (backend-fluxo)
 

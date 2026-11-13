@@ -16,7 +16,7 @@ Não altere `models/`, `core/` nem os módulos de outros agentes.
 
 Todas as rotas da seção "Fluxo do veículo" de `docs/03-contrato-api.md`, com as regras de `docs/02-arquitetura.md`. Atenção especial a:
 
-1. **Classificação (RF-07).** Sucata ou sinistrado sem laudo de classificação é gravado como `SUCATA_INSERVIVEL`; ao anexar o laudo, aplica o `tipo_declarado`. Depois do certificado, o tipo não muda.
+1. **Classificação (RF-07).** Todo tipo diferente de `SUCATA_INSERVIVEL` (inclusive `LICENCIADO_RODAGEM`) sem anexo `EVIDENCIA_CLASSIFICACAO` é gravado como `SUCATA_INSERVIVEL`; ao anexar a evidência, aplica o `tipo_declarado`. Depois do certificado, o tipo não muda.
 2. **Etapas flexíveis.** Descontaminação pode ter data anterior à recepção. `sem_viabilidade_desmontagem` dispensa a etapa de desmontagem.
 3. **Peças (RF-09, RF-10).** Código de rastreio único; a etiqueta devolve nome, chassi, data e CNPJ da desmontadora. A consulta pública por código não expõe nada além da etiqueta e do destino.
 4. **Pesagens e meta (RF-11, RF-12).** Percentual aproveitado e comparação com a meta do ano; abaixo da meta é alerta, não bloqueio.

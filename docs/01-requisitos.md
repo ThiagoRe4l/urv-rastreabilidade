@@ -12,7 +12,7 @@ Origem: Portaria GM/MDIC nº 325, de 6 de novembro de 2026 (`portaria-325-2026.p
 | RF-04 | Data de início de efeitos do MMV: 1º de janeiro seguinte se já comercializado; data do cadastro se novo | Art. 5º §§2º e 3º | Sim |
 | RF-05 | Retirada de MMV a pedido até 31 de dezembro | Art. 5º §§4º e 5º | Não |
 | RF-06 | Recepção do veículo com chassi, placa, Renavam, data, nota fiscal de entrada ou auto de arrematação e certidão de baixa | Art. 6º I; art. 18 III; Anexo III 14.a | Sim |
-| RF-07 | Classificação do tipo com evidência; sem laudo de classificação, o veículo é sucata inservível | Art. 2º §§2º a 5º; art. 6º I c | Sim |
+| RF-07 | Classificação do tipo com evidência; sem evidência de classificação (todo tipo diferente de sucata inservível), o veículo é sucata inservível | Art. 2º §§2º a 5º; art. 6º I c | Sim |
 | RF-08 | Registro de cada etapa com fotos (recepção, descontaminação, desmontagem, separação) | Art. 6º III c; art. 18 §1º | Sim, arquivos locais |
 | RF-09 | Peças classificadas como reutilizáveis ou não; reutilizáveis etiquetadas com QR Code contendo nome, chassi, data e CNPJ | Art. 18 V; Anexo III 6 a 8 | Sim |
 | RF-10 | Consulta de peças por origem, tipo, condição e destino | Anexo III 16 | Sim |
