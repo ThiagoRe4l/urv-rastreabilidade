@@ -20,7 +20,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://urv:urv@db:5432/urv
       TEST_DATABASE_URL: postgresql+psycopg://urv:urv@db:5432/urv_test
-      JWT_SECRET: ${JWT_SECRET:-segredo-local-de-demonstracao}
+      JWT_SECRET: ${JWT_SECRET:-segredo-local-de-demonstracao-nao-usar-em-producao}
       UPLOAD_DIR: /data/uploads
       CORS_ORIGENS: '["http://localhost:5173"]'
     volumes:
