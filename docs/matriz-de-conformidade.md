@@ -11,7 +11,7 @@ pytest tests/conformidade
 404 passed, 0 xfailed, 0 failed
 
 pytest   (suíte inteira: unitários e conformidade)
-740 passed
+741 passed
 ```
 
 Rodada anterior, na branch `feat/qa`, só com a fundação: 87 passed, 317 xfailed. Logo depois dos merges, antes de qualquer ajuste: 4 testes de conformidade falhavam. Os quatro eram do caso a, e há outros seis apertados aos códigos que o contrato passou a fixar; estão em "Testes alterados na integração", abaixo.
