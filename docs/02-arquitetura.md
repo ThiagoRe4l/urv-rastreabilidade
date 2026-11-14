@@ -18,7 +18,7 @@ Monólito modular: uma API FastAPI, um PostgreSQL, uma aplicação React. Três 
 | `web/` | frontend | Portais por papel |
 | `tests/conformidade` | qa-conformidade | Testes por requisito |
 
-Ponto de contato entre fluxo e URV: `app/modules/urv/service.py::gerar_credito(session, certificado) -> UrvCredito`. A fundação cria a assinatura com `NotImplementedError`; backend-urv implementa; backend-fluxo só chama.
+Ponto de contato entre fluxo e URV: `app/modules/urv/service.py::gerar_credito(session, certificado, *, usuario=None) -> UrvCredito`. A fundação criou a assinatura; backend-urv implementou; backend-fluxo só chama, sempre com `usuario=` para o evento `CREDITO_GERADO` ter autor (PM-URV-02).
 
 ## Modelo de dados
 
@@ -39,14 +39,18 @@ Todas as tabelas têm `id` (UUID) e `criado_em`. Tipos monetários e de URV: `NU
 | `laudo` | `veiculo_id` único, `responsavel_nome`, `responsavel_registro`, `assinado_em`, `hash_conteudo` | |
 | `certificado` | `veiculo_id` único, `numero` único, `empresa_id`, `tipo_veiculo`, `fator`, `percentual_aproveitado`, `meta_ano`, `atende_meta`, `emitido_em`, `hash_conteudo` | |
 | `urv_credito` | `certificado_id` único, `geradora_id`, `titular_id`, `quantidade`, `status` (DISPONIVEL, TRANSFERIDO) | Indivisível |
-| `urv_lancamento` | `empresa_id`, `tipo` (CREDITO, TRANSFERENCIA_SAIDA, TRANSFERENCIA_ENTRADA, DEBITO), `quantidade` (com sinal), `credito_id`, `consumo_id`, `contraparte_id` | Só inserção |
-| `consumo` | `fabricante_id`, `mmv_id`, `periodo` (AAAA-MM), `qv`, `rm`, `pm`, `pb`, `urv_debito`, `saldo_apos`, `regularizar_ate`, `prazo_reporte`, `registrado_em` | |
-| `consumo_chassi` | `consumo_id`, `chassi` único | Chassi de veículo novo |
+| `urv_lancamento` | `empresa_id`, `tipo` (CREDITO, TRANSFERENCIA_SAIDA, TRANSFERENCIA_ENTRADA, DEBITO), `quantidade` (com sinal), `credito_id`, `consumo_id`, `contraparte_id` | Só inserção. `(credito_id, tipo)` único: um crédito tem no máximo um lançamento de cada tipo (DEBITO tem `credito_id` nulo) |
+| `consumo` | `fabricante_id`, `mmv_id`, `periodo` (AAAA-MM), `qv`, `rm`, `pm`, `pb`, `urv_debito`, `saldo_apos`, `regularizar_ate`, `prazo_reporte`, `registrado_em` | Só inserção |
+| `consumo_chassi` | `consumo_id`, `chassi` único | Chassi de veículo novo. Só inserção |
 | `config_fator` | `tipo_veiculo`, `fator`, `vigente_desde` | Semeada com a tabela do art. 3º §2º |
 | `config_parametro` | `chave` (PRECO_BASE, FIM_SALDO_NEGATIVO), `valor`, `vigente_desde` | Semeada com 150000.00 e 2027-12-31 |
 | `evento_auditoria` | `sequencia` (bigserial), `ocorrido_em`, `usuario_id`, `empresa_id`, `tipo`, `entidade`, `entidade_id`, `payload` (JSONB), `hash_anterior`, `hash` | Só inserção |
 
-`urv_lancamento` e `evento_auditoria` têm gatilho no banco que rejeita `UPDATE`, `DELETE` e `TRUNCATE`.
+`urv_lancamento`, `evento_auditoria`, `consumo` e `consumo_chassi` têm gatilho no banco que rejeita `UPDATE`, `DELETE` e `TRUNCATE`. Os dois primeiros vêm da migração `0001`; `consumo`, `consumo_chassi` e o índice único `uq_urv_lancamento_credito_id_tipo` vêm da `0002` (PM-URV-05). É defesa em profundidade: a transferência única e o consumo único continuam garantidos primeiro pelo service, com `SELECT ... FOR UPDATE`, e o banco barra o que escapar.
+
+### Data das operações
+
+Toda data de regra de negócio é a data civil de Brasília (UTC-3 fixo), dada por `app/core/relogio.py`: validade do credenciamento, meta do ano, vigência de fatores e parâmetros, início de efeitos do MMV, prazo de reporte, prazo de regularização e data da etiqueta. Nenhuma regra usa `date.today()`, porque o container roda em UTC e, entre 21h e 0h de Brasília, ele já devolveria o dia seguinte. As rotas recebem o momento por `Depends(agora)`, que os testes trocam para simular datas (PM-URV-06).
 
 ## Regras de negócio
 
@@ -80,7 +84,7 @@ As etapas são registros independentes, não uma fila rígida, porque a portaria
 7. Laudo assinado.
 8. Chassi sem certificado anterior (RF-21).
 
-A falha devolve 422 com a lista do que falta. A emissão calcula o percentual aproveitado, grava se atende a meta do ano e chama `gerar_credito`. O veículo passa a `ENCERRADO` quando a etapa DESTINACAO é concluída com ao menos uma DMR.
+A falha das pré-condições 1 a 7 devolve 422 `PENDENCIAS_CERTIFICADO` com a lista do que falta. A pré-condição 8 não entra na lista: é conflito com um registro que já existe e devolve 409 `CERTIFICADO_JA_EMITIDO`, como `CHASSI_DUPLICADO` e `CHASSI_JA_CONSUMIDO` (PM-04). A emissão calcula o percentual aproveitado, grava se atende a meta do ano e chama `gerar_credito`. O veículo passa a `ENCERRADO` quando a etapa DESTINACAO é concluída com ao menos uma DMR.
 
 ### Meta de aproveitamento (RF-12)
 

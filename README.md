@@ -40,7 +40,7 @@ Não há rota para criar usuários: eles vêm do seed (lacuna L-02).
 
 ## Trilha de auditoria e demonstração de adulteração
 
-Cada escrita de negócio grava um evento encadeado por hash SHA-256 na mesma transação. O banco rejeita `UPDATE`, `DELETE` e `TRUNCATE` em `evento_auditoria` e `urv_lancamento`.
+Cada escrita de negócio grava um evento encadeado por hash SHA-256 na mesma transação. O banco rejeita `UPDATE`, `DELETE` e `TRUNCATE` em `evento_auditoria`, `urv_lancamento`, `consumo` e `consumo_chassi`.
 
 ```bash
 docker compose exec api python -m scripts.adulterar              # adultera o último evento e mostra a quebra
@@ -85,7 +85,7 @@ backend/
       auth/ empresas/ auditoria/                    fundação
       veiculos/ pecas/ residuos/ documentos/        backend-fluxo (agente 01)
       mmv/ urv/ relatorios/ portabilidade/          backend-urv (agente 02)
-  alembic/       migração única 0001_inicial
+  alembic/       migrações 0001_inicial e 0002_defesa_livro_urv
   scripts/       seed.py, adulterar.py
   tests/         conftest.py e banco.py compartilhados; unit/<agente>/; conformidade/
 web/             Vite + React 18 + TypeScript + TanStack Query + React Router
