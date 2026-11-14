@@ -431,6 +431,35 @@ def test_listagem_de_consumos_por_papel(client, auth, relogio, db_session, dados
     assert client.get(f"{URV}/consumos", headers=auth(EMAIL_DESMONTADORA)).status_code == 403
 
 
+def test_busca_de_consumo_pelo_chassi(client, auth, relogio, db_session, dados_demo, mmv) -> None:
+    """PM-WEB-06, RF-23: o auditor acha o consumo em que um chassi novo foi usado."""
+    outro = criar_empresa_com_usuario(
+        db_session,
+        cnpj=CNPJ_IMPORTADORA,
+        razao_social="Importadora Z",
+        tipo=TipoEmpresa.FABRICANTE,
+        email="fiscal@importadora.local",
+    )
+    mmv_outro = criar_mmv(db_session, outro.empresa_id, codigo="OUTRO")
+    _consumir(client, auth, mmv, vins(2))
+    _consumir(client, auth, mmv_outro, vins(3, 100), email="fiscal@importadora.local")
+
+    def buscar(chassi: str, email: str = EMAIL_AUDITOR) -> list:
+        r = client.get(f"{URV}/consumos", params={"chassi": chassi}, headers=auth(email))
+        assert r.status_code == 200, r.text
+        assert r.json()["total"] == len(r.json()["itens"])
+        return r.json()["itens"]
+
+    achados = buscar(vin(101))
+    assert [c["qv"] for c in achados] == [3]
+    assert vin(101) in achados[0]["chassis"] and len(achados[0]["chassis"]) == 3
+    assert [c["qv"] for c in buscar(f" {vin(1).lower()} ")] == [2]  # normalizado como no registro
+    assert buscar(vin(999)) == []
+    assert buscar(vin(1)[:10]) == []  # busca exata, não por trecho
+    # O fabricante continua vendo só os próprios consumos, mesmo buscando o chassi de outro.
+    assert buscar(vin(101), EMAIL_FABRICANTE) == []
+
+
 @pytest.mark.parametrize(
     ("email", "codigo"),
     [

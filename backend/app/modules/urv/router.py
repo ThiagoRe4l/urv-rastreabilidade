@@ -133,10 +133,11 @@ def registrar_consumo(
 @router.get("/consumos", response_model=Pagina[ConsumoSaida], summary="Consumos, com `fora_do_prazo`")
 def listar_consumos(
     empresa_id: uuid.UUID | None = _EMPRESA_ID,
+    chassi: str | None = Query(None, description="Chassi de veículo novo (busca exata, normalizada)"),
     pag: Paginacao = Depends(paginacao),
     session: Session = Depends(obter_sessao),
     usuario: Usuario = Depends(_leitor_consumos),
 ) -> Pagina[ConsumoSaida]:
     alvo = empresa_consultada(usuario, empresa_id)
-    itens, total = paginar(session, service.consulta_consumos(alvo), pag)
+    itens, total = paginar(session, service.consulta_consumos(alvo, chassi), pag)
     return Pagina[ConsumoSaida](itens=service.montar_consumos(session, itens), total=total)

@@ -58,6 +58,7 @@ from app.modules.urv.schemas import (
     MemoriaCalculo,
     SaldoSaida,
     SimulacaoSaida,
+    normalizar_chassi,
 )
 
 FORMULA_DEBITO = "urv_debito = (qv / rm) * max(1, pm / pb)"
@@ -499,7 +500,7 @@ def consulta_creditos(empresa_id: uuid.UUID | None, status: UrvCreditoStatus | N
     return stmt
 
 
-def consulta_consumos(fabricante_id: uuid.UUID | None) -> Select:
+def consulta_consumos(fabricante_id: uuid.UUID | None, chassi: str | None = None) -> Select:
     stmt = (
         select(Consumo)
         .options(selectinload(Consumo.chassis))
@@ -507,6 +508,13 @@ def consulta_consumos(fabricante_id: uuid.UUID | None) -> Select:
     )
     if fabricante_id is not None:
         stmt = stmt.where(Consumo.fabricante_id == fabricante_id)
+    if chassi and chassi.strip():
+        # PM-WEB-06, RF-23: em que consumo um chassi de veículo novo foi usado (RF-21: no máximo um).
+        stmt = stmt.where(
+            Consumo.id.in_(
+                select(ConsumoChassi.consumo_id).where(ConsumoChassi.chassi == normalizar_chassi(chassi))
+            )
+        )
     return stmt
 
 
