@@ -62,6 +62,7 @@ def atualizar_peca(
 
 @router.get("/pecas", response_model=Pagina[PecaSaida])
 def listar_pecas(
+    veiculo_id: uuid.UUID | None = Query(None),
     chassi: str | None = Query(None),
     nome: str | None = Query(None),
     condicao: PecaCondicao | None = Query(None),
@@ -72,7 +73,13 @@ def listar_pecas(
     usuario: Usuario = Depends(le_fluxo),
 ) -> Pagina[PecaSaida]:
     stmt = service.consulta_pecas(  # RF-10
-        usuario, chassi=chassi, nome=nome, condicao=condicao, destino=destino, classificacao=classificacao
+        usuario,
+        veiculo_id=veiculo_id,
+        chassi=chassi,
+        nome=nome,
+        condicao=condicao,
+        destino=destino,
+        classificacao=classificacao,
     )
     itens, total = paginar(session, stmt, pag)
     return Pagina[PecaSaida](itens=service.para_saida(session, itens), total=total)

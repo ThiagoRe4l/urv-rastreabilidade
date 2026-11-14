@@ -129,3 +129,17 @@ def test_consulta_por_origem_tipo_condicao_e_destino(client, h) -> None:
     assert nomes(classificacao="NAO_REUTILIZAVEL") == {"Cinto"}
     assert nomes(nome="porta", chassi="8AFZ") == {"Porta traseira"}
     assert nomes(nome="100%") == set()  # curingas do LIKE são tratados como texto
+    # PM-WEB-04: peças de um veículo, e toda peça traz o chassi de origem.
+    assert nomes(veiculo_id=b["id"]) == {"Porta traseira", "Cinto"}
+    assert nomes(veiculo_id=a["id"], destino="REVENDA") == {"Motor 1.6"}
+    r = client.get(PECAS, params={"veiculo_id": b["id"]}, headers=h).json()["itens"]
+    assert {p["chassi"] for p in r} == {"8AFZZZ54ABJ123456"}
+
+
+def test_consulta_por_veiculo_de_outra_empresa_nao_vaza(client, h, h_outra) -> None:
+    """PM-WEB-04 com RNF-01: o filtro por veículo não fura o escopo da empresa."""
+    a = criar_veiculo(client, h)
+    peca(client, h, a["id"], nome="Porta dianteira", destino="ESTOQUE")
+    r = client.get(PECAS, params={"veiculo_id": a["id"]}, headers=h_outra)
+    assert r.status_code == 200
+    assert r.json() == {"itens": [], "total": 0}

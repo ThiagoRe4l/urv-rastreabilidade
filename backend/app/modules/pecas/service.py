@@ -179,6 +179,7 @@ def atualizar_peca(session: Session, usuario: Usuario, peca_id: uuid.UUID, dados
 def consulta_pecas(
     usuario: Usuario,
     *,
+    veiculo_id: uuid.UUID | None = None,
     chassi: str | None,
     nome: str | None,
     condicao: PecaCondicao | None,
@@ -188,6 +189,8 @@ def consulta_pecas(
     """RF-10, Anexo III 16: por origem (chassi), tipo (nome, classificação), condição e destino."""
     stmt = select(Peca).join(Veiculo, Veiculo.id == Peca.veiculo_id)
     stmt = filtrar_por_empresa(stmt, Veiculo.empresa_id, usuario)
+    if veiculo_id is not None:  # PM-WEB-04: peças de um veículo, na página dele
+        stmt = stmt.where(Peca.veiculo_id == veiculo_id)
     if chassi:
         stmt = stmt.where(Veiculo.chassi.contains(normalizar_chassi(chassi), autoescape=True))
     if nome and nome.strip():
