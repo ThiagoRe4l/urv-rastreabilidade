@@ -101,6 +101,7 @@ class PecaPortavel(BaseModel):
     condicao: PecaCondicao | None = None
     destino: PecaDestino | None = None
     descaracterizada: bool = False
+    item_seguranca: bool = False
     registrada_em: AwareDatetime
 
 

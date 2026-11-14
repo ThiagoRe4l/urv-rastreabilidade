@@ -125,6 +125,8 @@ class Peca(ComId, Base):
     condicao: Mapped[PecaCondicao | None] = mapped_column(coluna_enum(PecaCondicao, "condicao"))
     destino: Mapped[PecaDestino | None] = mapped_column(coluna_enum(PecaDestino, "destino"))
     descaracterizada: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # Anexo III 7: item de segurança é obrigatoriamente não reutilizável (R10 da revisão).
+    item_seguranca: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     veiculo: Mapped[Veiculo] = relationship(back_populates="pecas")
 
@@ -132,6 +134,10 @@ class Peca(ComId, Base):
         CheckConstraint(
             "classificacao <> 'REUTILIZAVEL' OR codigo_rastreio IS NOT NULL",
             name="reutilizavel_com_rastreio",
+        ),
+        CheckConstraint(
+            "NOT item_seguranca OR classificacao = 'NAO_REUTILIZAVEL'",
+            name="item_seguranca_nao_reutilizavel",
         ),
     )
 

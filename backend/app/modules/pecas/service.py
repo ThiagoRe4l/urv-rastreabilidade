@@ -91,6 +91,7 @@ def para_saida(session: Session, pecas: Sequence[Peca]) -> list[PecaSaida]:
                 condicao=p.condicao,
                 destino=p.destino,
                 descaracterizada=p.descaracterizada,
+                item_seguranca=p.item_seguranca,
                 criado_em=p.criado_em,
                 etiqueta=_etiqueta(p, chassi, cnpj),
             )
@@ -106,6 +107,13 @@ def registrar_peca(session: Session, usuario: Usuario, veiculo_id: uuid.UUID, da
     veiculo = veiculos.obter_veiculo(session, usuario, veiculo_id, bloquear=True)
     # O certificado atesta a situação de todas as peças; não entram peças depois dele.
     veiculos.exigir_sem_certificado(veiculo)
+    # RF-27, Anexo III 7: item de segurança é obrigatoriamente não reutilizável (R10 da revisão).
+    if dados.item_seguranca and dados.classificacao != PecaClassificacao.NAO_REUTILIZAVEL:
+        raise ErroNegocio(
+            422,
+            "ITEM_SEGURANCA_NAO_REUTILIZAVEL",
+            "Item de segurança é obrigatoriamente não reutilizável (Anexo III, item 7).",
+        )
     _validar_destino(dados.classificacao, dados.destino)
 
     reutilizavel = dados.classificacao == PecaClassificacao.REUTILIZAVEL
@@ -119,6 +127,7 @@ def registrar_peca(session: Session, usuario: Usuario, veiculo_id: uuid.UUID, da
         condicao=dados.condicao,
         destino=dados.destino,
         descaracterizada=False,
+        item_seguranca=dados.item_seguranca,
     )
     session.add(peca)
     veiculos.marcar_em_processo(veiculo)
@@ -136,6 +145,7 @@ def registrar_peca(session: Session, usuario: Usuario, veiculo_id: uuid.UUID, da
             "codigo_rastreio": peca.codigo_rastreio,
             "condicao": peca.condicao,
             "destino": peca.destino,
+            "item_seguranca": peca.item_seguranca,
         },
     )
     return peca

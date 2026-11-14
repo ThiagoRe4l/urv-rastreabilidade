@@ -12,6 +12,10 @@ class PecaCriar(BaseModel):
     classificacao: PecaClassificacao
     condicao: PecaCondicao | None = Field(None, description="Obrigatória para peça reutilizável")
     destino: PecaDestino
+    item_seguranca: bool = Field(
+        False,
+        description="Item de segurança (airbag, cinto, pré-tensionador): só NAO_REUTILIZAVEL (Anexo III 7)",
+    )
 
     @field_validator("nome")
     @classmethod
@@ -60,6 +64,7 @@ class PecaSaida(BaseModel):
     condicao: PecaCondicao | None
     destino: PecaDestino | None
     descaracterizada: bool
+    item_seguranca: bool
     criado_em: datetime
     etiqueta: Etiqueta | None = Field(description="Só para peça reutilizável")
 

@@ -143,3 +143,25 @@ def test_consulta_por_veiculo_de_outra_empresa_nao_vaza(client, h, h_outra) -> N
     r = client.get(PECAS, params={"veiculo_id": a["id"]}, headers=h_outra)
     assert r.status_code == 200
     assert r.json() == {"itens": [], "total": 0}
+
+
+def test_item_de_seguranca_so_como_nao_reutilizavel(client, h, db_session) -> None:
+    """RF-27, Anexo III 7: item de segurança é obrigatoriamente não reutilizável (R10 da revisão)."""
+    v = criar_veiculo(client, h)
+    r = peca(client, h, v["id"], nome="Airbag do motorista", item_seguranca=True)  # REUTILIZAVEL
+    assert (r.status_code, r.json()["codigo"]) == (422, "ITEM_SEGURANCA_NAO_REUTILIZAVEL")
+    r = peca(
+        client,
+        h,
+        v["id"],
+        nome="Airbag do motorista",
+        classificacao="NAO_REUTILIZAVEL",
+        condicao=None,
+        destino="DESCARTE",
+        item_seguranca=True,
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["item_seguranca"] is True and r.json()["etiqueta"] is None
+    assert eventos(db_session, "PECA_REGISTRADA", r.json()["id"])[0].payload["item_seguranca"] is True
+    # Sem marcação, a peça comum segue reutilizável.
+    assert peca(client, h, v["id"]).json()["item_seguranca"] is False

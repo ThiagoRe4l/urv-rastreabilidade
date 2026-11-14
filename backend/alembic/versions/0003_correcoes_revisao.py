@@ -12,6 +12,8 @@
 - A7: `veiculo.renavam` e `veiculo.certidao_baixa_numero` únicos (art. 18 II; art. 21 III). Um
   banco com veículos repetidos nessas colunas não migra: a duplicidade precisa ser resolvida à mão,
   porque não há como saber qual dos registros é o legítimo.
+- R10: `peca.item_seguranca`; item de segurança só com classificação `NAO_REUTILIZAVEL`
+  (Anexo III 7).
 
 Revision ID: 0003
 Revises: 0002
@@ -65,6 +67,14 @@ def upgrade() -> None:
     op.create_unique_constraint(op.f("uq_veiculo_renavam"), "veiculo", ["renavam"])
     op.create_unique_constraint(op.f("uq_veiculo_certidao_baixa_numero"), "veiculo", ["certidao_baixa_numero"])
 
+    # R10, Anexo III 7: item de segurança é obrigatoriamente não reutilizável.
+    op.add_column("peca", sa.Column("item_seguranca", sa.Boolean(), server_default="false", nullable=False))
+    op.create_check_constraint(
+        op.f("ck_peca_item_seguranca_nao_reutilizavel"),
+        "peca",
+        "NOT item_seguranca OR classificacao = 'NAO_REUTILIZAVEL'",
+    )
+
     # A4, RF-22, art. 20 V: o que o certificado e o laudo atestam não muda depois de gravado.
     for tabela in TABELAS_IMUTAVEIS:
         op.execute(
@@ -95,6 +105,8 @@ def downgrade() -> None:
     for tabela in TABELAS_IMUTAVEIS:
         op.execute(f"DROP TRIGGER IF EXISTS trg_{tabela}_sem_truncate ON {tabela}")
         op.execute(f"DROP TRIGGER IF EXISTS trg_{tabela}_imutavel ON {tabela}")
+    op.drop_constraint(op.f("ck_peca_item_seguranca_nao_reutilizavel"), "peca", type_="check")
+    op.drop_column("peca", "item_seguranca")
     op.drop_constraint(op.f("uq_veiculo_certidao_baixa_numero"), "veiculo", type_="unique")
     op.drop_constraint(op.f("uq_veiculo_renavam"), "veiculo", type_="unique")
     for tabela in ("certificado", "urv_credito"):

@@ -43,6 +43,7 @@ from app.models import (
     Laudo,
     Mmv,
     Peca,
+    PecaClassificacao,
     Pesagem,
     TipoEmpresa,
     UrvCredito,
@@ -315,6 +316,7 @@ def _veiculo_portavel(v: Veiculo, laudo: Laudo | None) -> VeiculoPortavel:
                 condicao=p.condicao,
                 destino=p.destino,
                 descaracterizada=p.descaracterizada,
+                item_seguranca=p.item_seguranca,
                 registrada_em=p.criado_em,
             )
             for p in v.pecas
@@ -482,6 +484,10 @@ class _Importacao:
             titular = achado
         elif cred.titular_cnpj != empresa.cnpj:
             raise _Rejeicao("TITULAR_DIVERGENTE", "Crédito disponível com titular diferente da geradora.")
+        if any(p.item_seguranca and p.classificacao != PecaClassificacao.NAO_REUTILIZAVEL for p in v.pecas):
+            raise _Rejeicao(
+                "ITEM_SEGURANCA_NAO_REUTILIZAVEL", "Item de segurança é não reutilizável (Anexo III 7)."
+            )
         rastreios = [p.codigo_rastreio for p in v.pecas if p.codigo_rastreio]
         if rastreios and s.scalar(select(Peca.id).where(Peca.codigo_rastreio.in_(rastreios)).limit(1)):
             raise _Rejeicao("CODIGO_RASTREIO_DUPLICADO", "Há peça com código de rastreio já usado aqui.")
@@ -525,6 +531,7 @@ class _Importacao:
                 condicao=p.condicao,
                 destino=p.destino,
                 descaracterizada=p.descaracterizada,
+                item_seguranca=p.item_seguranca,
                 criado_em=p.registrada_em,
             )
             for p in v.pecas

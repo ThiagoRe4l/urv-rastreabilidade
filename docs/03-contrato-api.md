@@ -42,7 +42,7 @@ Depois do certificado, o que ele atesta não muda: pesagem, peça nova e etapa d
 | `POST /veiculos/{id}/anexos` | multipart: `arquivo`, `tipo`, `etapa_tipo` | Anexo. Anexar `EVIDENCIA_CLASSIFICACAO` aplica o `tipo_declarado`; arquivo com `sha256` que já é evidência de outro veículo é 409 `EVIDENCIA_REUTILIZADA` (A7 da revisão). `etapa_tipo` é obrigatório só para `FOTO` (422 `ETAPA_OBRIGATORIA`); nos demais o padrão é `RECEPCAO`. 413 `ARQUIVO_GRANDE_DEMAIS`, 415 `TIPO_DE_ARQUIVO_NAO_PERMITIDO`, 422 `ARQUIVO_VAZIO` (PM-03 c) |
 | `GET /anexos/{id}/arquivo` | | Arquivo |
 | `PUT /veiculos/{id}/etapas/{tipo}` | `iniciada_em`, `concluida_em?`, `observacoes?` | Etapa |
-| `POST /veiculos/{id}/pecas` | `nome`, `descricao`, `classificacao`, `condicao`, `destino` | Peca. Reutilizável recebe `codigo_rastreio` e `etiqueta` (`nome`, `chassi`, `data`, `cnpj`, `codigo`). `condicao` é obrigatória só para peça reutilizável; peça não reutilizável só aceita destino `RECICLAGEM`, `DESCARTE`, `REMANUFATURA` ou `RECONDICIONAMENTO` (422 `DESTINO_INCOMPATIVEL`) (PM-03 d) |
+| `POST /veiculos/{id}/pecas` | `nome`, `descricao`, `classificacao`, `condicao`, `destino`, `item_seguranca?` | Peca. Reutilizável recebe `codigo_rastreio` e `etiqueta` (`nome`, `chassi`, `data`, `cnpj`, `codigo`). `condicao` é obrigatória só para peça reutilizável; peça não reutilizável só aceita destino `RECICLAGEM`, `DESCARTE`, `REMANUFATURA` ou `RECONDICIONAMENTO` (422 `DESTINO_INCOMPATIVEL`) (PM-03 d). `item_seguranca: true` só com `NAO_REUTILIZAVEL` (422 `ITEM_SEGURANCA_NAO_REUTILIZAVEL`; Anexo III 7; R10 da revisão) |
 | `PATCH /pecas/{id}` | `destino?`, `descaracterizada?` | Peca. 422 `DESCARACTERIZACAO_IRREVERSIVEL` ao desmarcar |
 | `GET /pecas` | `?veiculo_id=&chassi=&nome=&condicao=&destino=&classificacao=` | Lista de Peca. Toda Peca traz `chassi` (PM-WEB-04). `chassi` busca por trecho; `veiculo_id` é exato |
 | `GET /pecas/rastreio/{codigo}` | público | `nome`, `chassi`, `data`, `cnpj`, `codigo` e `destino`. Nada além disso: a `condicao` não é pública (PM-WEB-05) |
@@ -100,7 +100,7 @@ Suposições do frontend resolvidas a favor do backend: o Anexo traz `nome_origi
 | `VeiculoDetalhe` | `id`, `empresa_id`, `chassi`, `placa`, `renavam`, `data_entrada`, `tipo_declarado`, `tipo`, `origem_aquisicao`, `documento_entrada_tipo`, `documento_entrada_numero`, `certidao_baixa_numero`, `peso_entrada_kg`, `sem_viabilidade_desmontagem`, `estado`, `criado_em`, `etapas`, `anexos`, `pendencias_certificado`, `percentual_aproveitado`, `laudo_id`, `certificado_id`, `rebaixado` |
 | `EtapaSaida` | `id`, `veiculo_id`, `tipo`, `iniciada_em`, `concluida_em`, `observacoes` |
 | `AnexoSaida` | `id`, `veiculo_id`, `etapa_tipo`, `tipo`, `sha256`, `nome_original`, `content_type`, `tamanho_bytes`, `enviado_por`, `criado_em` |
-| `PecaSaida` | `id`, `veiculo_id`, `chassi`, `nome`, `descricao`, `classificacao`, `codigo_rastreio`, `condicao`, `destino`, `descaracterizada`, `criado_em`, `etiqueta` |
+| `PecaSaida` | `id`, `veiculo_id`, `chassi`, `nome`, `descricao`, `classificacao`, `codigo_rastreio`, `condicao`, `destino`, `descaracterizada`, `item_seguranca`, `criado_em`, `etiqueta` |
 | `Etiqueta` | `nome`, `chassi`, `data`, `cnpj`, `codigo` |
 | `RastreioSaida` | `nome`, `chassi`, `data`, `cnpj`, `codigo`, `destino` |
 | `PesagemSaida` | `id`, `veiculo_id`, `fracao`, `destino`, `peso_kg`, `criado_em` |
