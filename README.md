@@ -50,6 +50,8 @@ docker compose exec api python -m scripts.adulterar --restaurar  # desfaz
 
 Depois de adulterar, `GET /api/v1/auditoria/verificar` (AUDITOR ou ADMIN) devolve `{"integra": false, "primeira_quebra": N}`.
 
+Roteiro de demonstração inteiro por HTTP, com a stack no ar: `docker compose exec api python -m scripts.roteiro_http` (passos 1 a 9, conferindo cada resposta; `--verificar` só confere a cadeia, e `--url` aponta outra API).
+
 ## Testes
 
 Os testes usam PostgreSQL de verdade, porque gatilhos, JSONB e bloqueios consultivos não existem no SQLite.
@@ -86,7 +88,7 @@ backend/
       veiculos/ pecas/ residuos/ documentos/        backend-fluxo (agente 01)
       mmv/ urv/ relatorios/ portabilidade/          backend-urv (agente 02)
   alembic/       migrações 0001_inicial e 0002_defesa_livro_urv
-  scripts/       seed.py, adulterar.py
+  scripts/       seed.py, adulterar.py, roteiro_http.py
   tests/         conftest.py e banco.py compartilhados; unit/<agente>/; conformidade/
 web/             Vite + React 18 + TypeScript + TanStack Query + React Router
 docs/            requisitos, arquitetura, contrato, plano, lacunas, pedidos de mudança
