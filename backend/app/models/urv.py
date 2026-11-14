@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Integer, Numeric, String, func
+from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, ComId, coluna_enum
@@ -31,7 +31,11 @@ class UrvCredito(ComId, Base):
 
 
 class UrvLancamento(ComId, Base):
-    """Livro-razão só de inserção (gatilho no banco). Saldo = soma de `quantidade`."""
+    """Livro-razão só de inserção (gatilho no banco). Saldo = soma de `quantidade`.
+
+    Um crédito tem no máximo um lançamento de cada tipo (índice único, migração 0002): o banco
+    barra a segunda transferência mesmo que o service falhe. RF-17, art. 3º §1º; PM-URV-05.
+    """
 
     __tablename__ = "urv_lancamento"
 
@@ -50,11 +54,16 @@ class UrvLancamento(ComId, Base):
         ),
         CheckConstraint("tipo <> 'DEBITO' OR consumo_id IS NOT NULL", name="debito_com_consumo"),
         CheckConstraint("tipo = 'DEBITO' OR credito_id IS NOT NULL", name="credito_referenciado"),
+        # DEBITO tem credito_id nulo; nulos são distintos no PostgreSQL. PM-URV-05.
+        Index("uq_urv_lancamento_credito_id_tipo", "credito_id", "tipo", unique=True),
     )
 
 
 class Consumo(ComId, Base):
-    """Débito de URV por MMV. RF-18 a RF-20, art. 3º §3º; art. 7º; art. 8º III e §1º."""
+    """Débito de URV por MMV. RF-18 a RF-20, art. 3º §3º; art. 7º; art. 8º III e §1º.
+
+    Só de inserção (gatilho no banco, migração 0002; PM-URV-05).
+    """
 
     __tablename__ = "consumo"
 
@@ -83,7 +92,10 @@ class Consumo(ComId, Base):
 
 
 class ConsumoChassi(ComId, Base):
-    """Chassi de veículo novo: consumido uma única vez (RF-21, arts. 28 e 29)."""
+    """Chassi de veículo novo: consumido uma única vez (RF-21, arts. 28 e 29).
+
+    Só de inserção (gatilho no banco, migração 0002; PM-URV-05).
+    """
 
     __tablename__ = "consumo_chassi"
 
