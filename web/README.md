@@ -8,6 +8,7 @@ Aplicação React com uma área por papel. Fala com a API em `/api/v1` (o Vite r
 | --- | --- |
 | `npm run dev` | Sobe em `http://localhost:5173` contra a API real. |
 | `npm run dev:mock` | O mesmo, com `VITE_MOCK=1`: todas as rotas são simuladas no navegador por MSW. Não precisa de backend. |
+| `npm run tipos` | Regenera `src/api/schema.d.ts` a partir de `http://localhost:8000/openapi.json` (a API precisa estar no ar). |
 | `npm test` | Testes (vitest): o roteiro de demonstração inteiro contra o backend simulado, e as contas em decimal. |
 | `npm run build` | Checagem de tipos e build de produção. O mock não entra no pacote. |
 | `npm run lint` | ESLint. |
@@ -23,10 +24,11 @@ Usuários de demonstração (senha `demo1234`): `admin@urv.local`, `operador@des
 - A faixa amarela no topo tem dois botões: **Reiniciar dados** e **Adulterar um evento**, que faz o papel de `scripts/adulterar.py` para o passo 9 do roteiro.
 - Hashes do mock não são SHA-256; servem só para a cadeia quebrar quando um evento muda.
 
-## Na integração
+## Tipos da API
 
-1. Gerar `src/api/types.ts` a partir de `/openapi.json`. Hoje os tipos são escritos à mão; os da fundação espelham os schemas reais, os de fluxo e URV são a leitura do contrato feita pelo frontend (ver PM-WEB-03 a PM-WEB-06 em `docs/pedidos-de-mudanca.md`).
-2. Desligar o mock: remover `.env.mock`, os scripts `dev:mock` e `build:mock`, `src/mocks/`, `public/mockServiceWorker.js` e a dependência `msw`. `src/mocks/servidor.test.ts` sai junto; `src/lib/decimal.test.ts` fica.
+`src/api/schema.d.ts` é gerado por `openapi-typescript` a partir do `/openapi.json` da API e fica no repositório, para o build não depender do backend no ar. `src/api/types.ts` só dá nomes curtos aos schemas (`Veiculo = VeiculoSaida`, `Credito = CreditoSaida` etc.). Mudou um schema no backend: rode `npm run tipos` com a API no ar e corrija o que o `tsc` apontar, inclusive no mock, que usa os mesmos tipos.
+
+O mock continua disponível (`npm run dev:mock`) e responde com a forma dos schemas reais. As regras dele são uma cópia simplificada: quem decide é o backend.
 
 ## Organização
 

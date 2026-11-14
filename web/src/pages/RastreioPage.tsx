@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { rastrearPeca } from "../api";
 import { Erro } from "../components/Erro";
-import { ROTULO_CONDICAO, ROTULO_DESTINO_PECA } from "../lib/dominio";
+import { ROTULO_DESTINO_PECA } from "../lib/dominio";
 import { fmtCnpj, fmtData } from "../lib/formato";
 
 /** Página pública da etiqueta, aberta pelo QR Code. Não exige login. */
@@ -52,13 +52,7 @@ export function RastreioPage() {
               {peca.data && (
                 <>
                   <dt>Destino atual</dt>
-                  <dd>{ROTULO_DESTINO_PECA[peca.data.destino]}</dd>
-                  {peca.data.condicao && (
-                    <>
-                      <dt>Condição</dt>
-                      <dd>{ROTULO_CONDICAO[peca.data.condicao]}</dd>
-                    </>
-                  )}
+                  <dd>{peca.data.destino ? ROTULO_DESTINO_PECA[peca.data.destino] : "—"}</dd>
                 </>
               )}
             </dl>

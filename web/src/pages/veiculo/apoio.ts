@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { listarCertificados, listarPecas, obterCertificado } from "../../api";
-import type { AnexoTipo, Etapa, Veiculo } from "../../api/types";
+import { listarPecas, obterCertificado, obterLaudo } from "../../api";
+import type { AnexoTipo, Etapa, Veiculo, VeiculoDetalhe } from "../../api/types";
 
 /** Uma evidência exigida na etapa: já existe ou falta. Com `anexo`, oferece o envio do arquivo. */
 export interface Evidencia {
@@ -19,27 +19,29 @@ export function situacaoDaEtapa(etapa: Etapa | undefined, dispensada = false): S
   return dispensada ? "dispensada" : "pendente";
 }
 
-/** O contrato não tem lista de peças por veículo; usa-se a consulta por chassi (RF-10). */
+/** Peças do veículo: GET /pecas?veiculo_id= (RF-10; PM-WEB-04). */
 export function usePecasDoVeiculo(veiculo: Veiculo) {
   return useQuery({
     queryKey: ["pecas", "veiculo", veiculo.id],
-    queryFn: async () => (await listarPecas({ chassi: veiculo.chassi })).itens.filter((p) => p.veiculo_id === veiculo.id),
+    queryFn: async () => (await listarPecas({ veiculo_id: veiculo.id })).itens,
   });
 }
 
-/**
- * Certificado do veículo, com laudo e crédito. GET /veiculos/{id} não traz o certificado,
- * então ele é achado na lista da empresa e depois detalhado (pedido de mudança PM-WEB-03).
- */
-export function useCertificadoDoVeiculo(veiculo: Veiculo) {
-  const emitido = veiculo.estado === "CERTIFICADO" || veiculo.estado === "ENCERRADO";
+/** Laudo do veículo, antes ou depois do certificado: GET /veiculos/{id}/laudo (RF-14; PM-WEB-03). */
+export function useLaudoDoVeiculo(veiculo: VeiculoDetalhe) {
   return useQuery({
-    queryKey: ["certificado", "veiculo", veiculo.id],
-    enabled: emitido,
-    queryFn: async () => {
-      const lista = await listarCertificados(veiculo.empresa_id);
-      const achado = lista.itens.find((c) => c.veiculo_id === veiculo.id);
-      return achado ? obterCertificado(achado.id) : null;
-    },
+    queryKey: ["laudo", "veiculo", veiculo.id, veiculo.laudo_id],
+    enabled: veiculo.laudo_id != null,
+    queryFn: () => obterLaudo(veiculo.id),
+  });
+}
+
+/** Certificado do veículo, com laudo e crédito: `certificado_id` vem no detalhe do veículo (PM-03 a). */
+export function useCertificadoDoVeiculo(veiculo: VeiculoDetalhe) {
+  const id = veiculo.certificado_id;
+  return useQuery({
+    queryKey: ["certificado", "veiculo", veiculo.id, id],
+    enabled: id != null,
+    queryFn: () => obterCertificado(id!),
   });
 }

@@ -47,7 +47,14 @@ export const criarPeca = (veiculoId: string, dados: T.PecaCriar) =>
 export const atualizarPeca = (id: string, dados: { destino?: T.PecaDestino; descaracterizada?: boolean }) =>
   patch<T.Peca>(`/pecas/${id}`, dados);
 export const listarPecas = (
-  filtros: { chassi?: string; nome?: string; condicao?: string; destino?: string; classificacao?: string } = {},
+  filtros: {
+    veiculo_id?: string;
+    chassi?: string;
+    nome?: string;
+    condicao?: string;
+    destino?: string;
+    classificacao?: string;
+  } = {},
 ) => api<T.Pagina<T.Peca>>(`/pecas${qs({ ...filtros, ...TUDO })}`);
 export const rastrearPeca = (codigo: string) => api<T.Rastreio>(`/pecas/rastreio/${encodeURIComponent(codigo)}`);
 export const criarPesagem = (veiculoId: string, dados: T.PesagemCriar) =>
@@ -57,10 +64,12 @@ export const criarDmr = (veiculoId: string, dados: T.DmrCriar) => post<T.Dmr>(`/
 export const listarDmrs = (veiculoId: string) => api<T.Pagina<T.Dmr>>(`/veiculos/${veiculoId}/dmrs${qs(TUDO)}`);
 export const assinarLaudo = (veiculoId: string, responsavel_nome: string, responsavel_registro: string) =>
   post<T.Laudo>(`/veiculos/${veiculoId}/laudo`, { responsavel_nome, responsavel_registro });
+/** PM-WEB-03: o laudo do veículo, antes ou depois do certificado. 404 se ainda não foi assinado. */
+export const obterLaudo = (veiculoId: string) => api<T.Laudo>(`/veiculos/${veiculoId}/laudo`);
 export const emitirCertificado = (veiculoId: string) => post<T.Certificado>(`/veiculos/${veiculoId}/certificado`);
 export const listarCertificados = (empresa_id?: string) =>
   api<T.Pagina<T.Certificado>>(`/certificados${qs({ empresa_id, ...TUDO })}`);
-export const obterCertificado = (id: string) => api<T.Certificado>(`/certificados/${id}`);
+export const obterCertificado = (id: string) => api<T.CertificadoDetalhe>(`/certificados/${id}`);
 
 // ---------- URV e MMV ----------
 export const criarMmv = (dados: T.MmvCriar) => post<T.Mmv>("/mmvs", dados);
@@ -74,6 +83,8 @@ export const transferirCredito = (id: string, fabricante_id: string) =>
   post<T.Credito>(`/urv/creditos/${id}/transferir`, { fabricante_id });
 export const simularConsumo = (dados: T.SimulacaoEntrada) => post<T.Simulacao>("/urv/consumos/simular", dados);
 export const criarConsumo = (dados: T.ConsumoCriar) => post<T.Consumo>("/urv/consumos", dados);
-export const listarConsumos = () => api<T.Pagina<T.Consumo>>(`/urv/consumos${qs(TUDO)}`);
+/** PM-WEB-06: `chassi` acha o consumo em que um chassi de veículo novo foi usado (busca exata). */
+export const listarConsumos = (filtros: { chassi?: string } = {}) =>
+  api<T.Pagina<T.Consumo>>(`/urv/consumos${qs({ ...filtros, ...TUDO })}`);
 export const obterRelatorio = (ano?: number) => api<T.RelatorioMdic>(`/relatorios/mdic${qs({ ano })}`);
 export const exportarHistorico = () => apiBlob("/portabilidade/exportar");

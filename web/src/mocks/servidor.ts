@@ -1,4 +1,6 @@
-// Backend simulado em memória, usado com VITE_MOCK=1 enquanto os backends reais não existem.
+// Backend simulado em memória, usado com VITE_MOCK=1 (npm run dev:mock) para demonstrar sem backend.
+// Desde a integração, as respostas têm a forma dos schemas reais (src/api/schema.d.ts, gerado de
+// /openapi.json): se o backend mudar um campo, o mock deixa de compilar.
 // É uma função pura (requisição → resposta), sem dependência do MSW, para poder ser testada em Node.
 // Segue docs/03-contrato-api.md e as regras de docs/02-arquitetura.md. Não é a fonte de verdade
 // de nenhuma regra: o backend real decide; aqui só há o suficiente para o roteiro de demonstração.
@@ -38,9 +40,12 @@ interface UsuarioReg {
 
 type EmpresaReg = Omit<T.Empresa, "credenciamento_vigente">;
 type VinculoReg = Omit<T.Vinculo, "geradora" | "fabricante">;
-type CreditoReg = Omit<T.Credito, "certificado" | "chassi">;
-type CertificadoReg = Omit<T.Certificado, "credito" | "laudo" | "veiculo">;
-type ConsumoReg = Omit<T.Consumo, "fora_do_prazo"> & { chassis: string[] };
+type CreditoReg = Omit<T.Credito, "certificado" | "chassi" | "geradora" | "titular">;
+type CertificadoReg = Omit<T.Certificado, "credito">;
+type ConsumoReg = Omit<T.Consumo, "fora_do_prazo" | "mmv_codigo">;
+type LancamentoReg = Omit<T.Lancamento, "contraparte">;
+/** `rebaixado` é calculado no backend (só leitura no schema); aqui é guardado e atualizado. */
+type VeiculoReg = Omit<T.Veiculo, "rebaixado"> & { rebaixado: boolean };
 
 interface Estado {
   versao: number;
@@ -48,7 +53,7 @@ interface Estado {
   usuarios: UsuarioReg[];
   vinculos: VinculoReg[];
   mmvs: T.Mmv[];
-  veiculos: T.Veiculo[];
+  veiculos: VeiculoReg[];
   etapas: T.Etapa[];
   anexos: T.Anexo[];
   pecas: T.Peca[];
@@ -57,12 +62,12 @@ interface Estado {
   laudos: T.Laudo[];
   certificados: CertificadoReg[];
   creditos: CreditoReg[];
-  lancamentos: T.Lancamento[];
+  lancamentos: LancamentoReg[];
   consumos: ConsumoReg[];
   eventos: T.Evento[];
 }
 
-const VERSAO = 1;
+const VERSAO = 2;
 // Art. 3º §2º.
 const FATORES: Record<T.TipoVeiculo, string> = {
   LICENCIADO_RODAGEM: "1.00",
@@ -306,7 +311,7 @@ function lancar(
   empresa_id: string,
   tipo: T.LancamentoTipo,
   quantidade: string,
-  extra: Partial<Pick<T.Lancamento, "credito_id" | "consumo_id" | "contraparte_id">>,
+  extra: Partial<Pick<LancamentoReg, "credito_id" | "consumo_id" | "contraparte_id">>,
 ) {
   c.e.lancamentos.push({
     id: uuid(),
@@ -324,7 +329,7 @@ function lancar(
 // ---------- veículo ----------
 
 /** Veículo visível ao usuário; `escrita` exige ser a geradora dona. */
-function veiculoDe(c: Ctx, id: string, escrita: boolean): T.Veiculo {
+function veiculoDe(c: Ctx, id: string, escrita: boolean): VeiculoReg {
   const u = escrita ? exigir(c, "DESMONTADORA", "RECICLADORA") : exigir(c, "DESMONTADORA", "RECICLADORA", "AUDITOR", "ADMIN");
   const v = achar(c.e.veiculos, id, "Veículo");
   if (u.empresa_id && v.empresa_id !== u.empresa_id) throw new Falha(404, "NAO_ENCONTRADO", "Veículo não encontrado");
@@ -389,13 +394,31 @@ function atualizarEstado(c: Ctx, v: T.Veiculo) {
 }
 
 function verCredito(c: Ctx, cr: CreditoReg): T.Credito {
-  const cert = c.e.certificados.find((x) => x.id === cr.certificado_id);
-  const veiculo = cert && c.e.veiculos.find((v) => v.id === cert.veiculo_id);
+  const cert = achar(c.e.certificados, cr.certificado_id, "Certificado");
   return {
     ...cr,
-    certificado: cert ? { id: cert.id, numero: cert.numero, emitido_em: cert.emitido_em } : null,
-    chassi: veiculo?.chassi ?? null,
+    certificado: {
+      id: cert.id,
+      numero: cert.numero,
+      tipo_veiculo: cert.tipo_veiculo,
+      fator: cert.fator,
+      emitido_em: cert.emitido_em,
+    },
+    chassi: cert.chassi,
+    geradora: resumo(c, cr.geradora_id),
+    titular: resumo(c, cr.titular_id),
   };
+}
+
+function resumoCredito(c: Ctx, certificadoId: string): T.CreditoResumo | null {
+  const cr = c.e.creditos.find((x) => x.certificado_id === certificadoId);
+  return cr
+    ? { id: cr.id, quantidade: cr.quantidade, status: cr.status, geradora_id: cr.geradora_id, titular_id: cr.titular_id }
+    : null;
+}
+
+function verCertificado(c: Ctx, cert: CertificadoReg): T.Certificado {
+  return { ...cert, credito: resumoCredito(c, cert.id) };
 }
 
 // ---------- consumo ----------
@@ -407,13 +430,19 @@ function mmvDoFabricante(c: Ctx, u: UsuarioReg): T.Mmv {
 }
 
 /** RF-18: urv_debito = (qv / rm) * max(1, pm / pb), em 0.01, ROUND_HALF_UP. */
-export function calcularDebito(qv: number, rm: number, pm: string, pb: string): { debito: string; fator_preco: string } {
+export function calcularDebito(
+  qv: number,
+  rm: number,
+  pm: string,
+  pb: string,
+): { debito: string; razao_preco: string; multiplicador: string } {
   const pmC = paraEscala(pm, 2);
   const pbC = paraEscala(pb, 2);
   const maior = pmC > pbC ? pmC : pbC;
   return {
     debito: deEscala(dividirHalfUp(BigInt(qv) * maior * 100n, BigInt(rm) * pbC), 2),
-    fator_preco: deEscala(dividirHalfUp(maior * 1000000n, pbC), 6),
+    razao_preco: deEscala(dividirHalfUp(pmC * 10000n, pbC), 4),
+    multiplicador: deEscala(dividirHalfUp(maior * 10000n, pbC), 4),
   };
 }
 
@@ -434,8 +463,9 @@ export function regularizarAte(registro: Date): string {
   return hojeIso(new Date(registro.getFullYear(), registro.getMonth() + 4, 0));
 }
 
-function verConsumo(x: ConsumoReg): T.Consumo {
-  return { ...x, fora_do_prazo: x.registrado_em.slice(0, 10) > x.prazo_reporte };
+function verConsumo(c: Ctx, x: ConsumoReg): T.Consumo {
+  const mmv = c.e.mmvs.find((m) => m.id === x.mmv_id);
+  return { ...x, mmv_codigo: mmv?.codigo ?? "", fora_do_prazo: x.registrado_em.slice(0, 10) > x.prazo_reporte };
 }
 
 // ---------- rotas ----------
@@ -633,7 +663,7 @@ const ROTAS: [string, RegExp, Manipulador][] = [
         throw new Falha(409, "CHASSI_DUPLICADO", `O chassi ${chassi} já foi registrado`);
       }
       const tipo_declarado = umDe(c, "tipo", Object.keys(FATORES) as T.TipoVeiculo[]);
-      const veiculo: T.Veiculo = {
+      const veiculo: VeiculoReg = {
         id: uuid(),
         empresa_id: u.empresa_id!,
         chassi,
@@ -651,6 +681,7 @@ const ROTAS: [string, RegExp, Manipulador][] = [
         sem_viabilidade_desmontagem: c.corpo.sem_viabilidade_desmontagem === true,
         estado: "RECEBIDO",
         criado_em: c.agora.toISOString(),
+        rebaixado: tipo_declarado !== "SUCATA_INSERVIVEL",
       };
       c.e.veiculos.push(veiculo);
       registrar(c, "VEICULO_RECEBIDO", "veiculo", veiculo.id, { chassi, tipo_declarado, tipo: veiculo.tipo });
@@ -682,6 +713,8 @@ const ROTAS: [string, RegExp, Manipulador][] = [
         anexos: c.e.anexos.filter((x) => x.veiculo_id === id),
         pendencias_certificado: pendenciasCertificado(c, v),
         percentual_aproveitado: percentualAproveitado(c, id),
+        laudo_id: c.e.laudos.find((l) => l.veiculo_id === id)?.id ?? null,
+        certificado_id: c.e.certificados.find((x) => x.veiculo_id === id)?.id ?? null,
       };
     },
   ],
@@ -703,14 +736,20 @@ const ROTAS: [string, RegExp, Manipulador][] = [
         veiculo_id: id,
         etapa_tipo: umDe(c, "etapa_tipo", ["RECEPCAO", "DESCONTAMINACAO", "DESMONTAGEM", "DESTRUICAO", "DESTINACAO"] as const),
         tipo,
-        nome_arquivo: nome,
         sha256: hashFalso(`${nome}:${arquivo.size}:${arquivo.type}`),
+        nome_original: nome,
+        content_type: arquivo.type || null,
+        tamanho_bytes: arquivo.size,
+        enviado_por: exigir(c).id,
         criado_em: c.agora.toISOString(),
       };
       c.e.anexos.push(anexo);
       c.arquivos.set(anexo.id, arquivo);
       // RF-07: a evidência aplica o tipo declarado.
-      if (tipo === "EVIDENCIA_CLASSIFICACAO") v.tipo = v.tipo_declarado;
+      if (tipo === "EVIDENCIA_CLASSIFICACAO") {
+        v.tipo = v.tipo_declarado;
+        v.rebaixado = false;
+      }
       registrar(c, "ANEXO_ADICIONADO", "veiculo", id, { anexo_id: anexo.id, tipo, etapa_tipo: anexo.etapa_tipo, sha256: anexo.sha256 });
       return anexo;
     },
@@ -823,11 +862,13 @@ const ROTAS: [string, RegExp, Manipulador][] = [
       };
       const chassi = c.consulta.get("chassi")?.toUpperCase();
       const nome = c.consulta.get("nome")?.toLowerCase();
+      const veiculoId = c.consulta.get("veiculo_id");
       return paginar(
         c,
         c.e.pecas
           .filter((p) => visiveis.has(p.veiculo_id))
-          .filter((p) => !chassi || (p.chassi ?? "").includes(chassi))
+          .filter((p) => !veiculoId || p.veiculo_id === veiculoId)
+          .filter((p) => !chassi || p.chassi.includes(chassi))
           .filter((p) => !nome || p.nome.toLowerCase().includes(nome))
           .filter(igual("condicao"))
           .filter(igual("destino"))
@@ -842,7 +883,7 @@ const ROTAS: [string, RegExp, Manipulador][] = [
       // Rota pública: sem token.
       const peca = c.e.pecas.find((p) => p.codigo_rastreio === decodeURIComponent(codigo).toUpperCase());
       if (!peca?.etiqueta) throw new Falha(404, "NAO_ENCONTRADO", "Código de rastreio não encontrado");
-      return { ...peca.etiqueta, destino: peca.destino, condicao: peca.condicao, descricao: peca.descricao };
+      return { ...peca.etiqueta, destino: peca.destino };
     },
   ],
 
@@ -871,9 +912,19 @@ const ROTAS: [string, RegExp, Manipulador][] = [
     /^\/veiculos\/([^/]+)\/pesagens$/,
     (c, id): T.Pesagens => {
       veiculoDe(c, id, false);
+      const pesagens = c.e.pesagens.filter((p) => p.veiculo_id === id);
+      const percentual = percentualAproveitado(c, id);
+      const meta = metaDoAno(c.agora.getFullYear());
       return {
-        ...paginar(c, c.e.pesagens.filter((p) => p.veiculo_id === id)),
-        percentual_aproveitado: percentualAproveitado(c, id),
+        itens: pesagens,
+        total: pesagens.length,
+        peso_total_kg: deEscala(
+          pesagens.reduce((s, p) => s + paraEscala(p.peso_kg, 3), 0n),
+          3,
+        ),
+        percentual_aproveitado: percentual,
+        meta_ano: meta,
+        atende_meta: meta && percentual ? paraEscala(percentual, 2) >= paraEscala(meta, 2) : null,
       };
     },
   ],
@@ -934,10 +985,21 @@ const ROTAS: [string, RegExp, Manipulador][] = [
         responsavel_registro,
         assinado_em,
         hash_conteudo: hashFalso(JSON.stringify([v.chassi, responsavel_nome, responsavel_registro, assinado_em])),
+        assinatura: { algoritmo: "SIMULADA-MOCK", valor: hashFalso(`${responsavel_registro}:${assinado_em}`) },
       };
       c.e.laudos.push(laudo);
       atualizarEstado(c, v);
       registrar(c, "LAUDO_ASSINADO", "veiculo", id, { laudo_id: laudo.id, hash_conteudo: laudo.hash_conteudo });
+      return laudo;
+    },
+  ],
+  [
+    "GET",
+    /^\/veiculos\/([^/]+)\/laudo$/,
+    (c, id): T.Laudo => {
+      veiculoDe(c, id, false);
+      const laudo = c.e.laudos.find((l) => l.veiculo_id === id);
+      if (!laudo) throw new Falha(404, "NAO_ENCONTRADO", "Laudo não encontrado");
       return laudo;
     },
   ],
@@ -948,7 +1010,7 @@ const ROTAS: [string, RegExp, Manipulador][] = [
       const v = veiculoDe(c, id, true);
       // RF-21: um chassi gera crédito uma vez.
       if (c.e.certificados.some((x) => x.veiculo_id === id)) {
-        throw new Falha(409, "CHASSI_JA_CREDITADO", "Este chassi já tem certificado");
+        throw new Falha(409, "CERTIFICADO_JA_EMITIDO", "Este chassi já tem certificado emitido");
       }
       const pendencias = pendenciasCertificado(c, v);
       if (pendencias.length) {
@@ -961,6 +1023,7 @@ const ROTAS: [string, RegExp, Manipulador][] = [
       const certificado: CertificadoReg = {
         id: uuid(),
         veiculo_id: id,
+        chassi: v.chassi,
         numero,
         empresa_id: v.empresa_id,
         tipo_veiculo: v.tipo,
@@ -987,7 +1050,7 @@ const ROTAS: [string, RegExp, Manipulador][] = [
       atualizarEstado(c, v);
       registrar(c, "CERTIFICADO_EMITIDO", "veiculo", id, { certificado_id: certificado.id, numero, fator: certificado.fator });
       registrar(c, "CREDITO_GERADO", "urv_credito", credito.id, { veiculo_id: id, chassi: v.chassi, quantidade: credito.quantidade });
-      return { ...certificado, credito: verCredito(c, credito) };
+      return verCertificado(c, certificado);
     },
   ],
   [
@@ -996,22 +1059,23 @@ const ROTAS: [string, RegExp, Manipulador][] = [
     (c) => {
       const u = exigir(c);
       const empresa = u.empresa_id ?? c.consulta.get("empresa_id");
-      return paginar(c, c.e.certificados.filter((x) => !empresa || x.empresa_id === empresa));
+      return paginar(
+        c,
+        c.e.certificados.filter((x) => !empresa || x.empresa_id === empresa).map((x) => verCertificado(c, x)),
+      );
     },
   ],
   [
     "GET",
     /^\/certificados\/([^/]+)$/,
-    (c, id): T.Certificado => {
+    (c, id): T.CertificadoDetalhe => {
       const u = exigir(c);
       const cert = achar(c.e.certificados, id, "Certificado");
       if (u.empresa_id && cert.empresa_id !== u.empresa_id) throw new Falha(404, "NAO_ENCONTRADO", "Certificado não encontrado");
-      const credito = c.e.creditos.find((x) => x.certificado_id === id);
       return {
-        ...cert,
-        credito: credito ? verCredito(c, credito) : null,
+        ...verCertificado(c, cert),
         laudo: c.e.laudos.find((l) => l.veiculo_id === cert.veiculo_id) ?? null,
-        veiculo: c.e.veiculos.find((v) => v.id === cert.veiculo_id) ?? null,
+        veiculo: achar(c.e.veiculos, cert.veiculo_id, "Veículo"),
       };
     },
   ],
@@ -1070,7 +1134,11 @@ const ROTAS: [string, RegExp, Manipulador][] = [
         .filter((x) => x.fabricante_id === u.empresa_id && x.regularizar_ate)
         .map((x) => x.regularizar_ate!)
         .sort();
-      return { saldo: deEscala(saldo, 2), regularizar_ate: saldo < 0n ? (prazos[0] ?? null) : null };
+      return {
+        empresa_id: u.empresa_id!,
+        saldo: deEscala(saldo, 2),
+        regularizar_ate: saldo < 0n ? (prazos[0] ?? null) : null,
+      };
     },
   ],
   [
@@ -1080,7 +1148,13 @@ const ROTAS: [string, RegExp, Manipulador][] = [
       const u = exigir(c);
       const empresa = u.empresa_id ?? c.consulta.get("empresa_id");
       if (!empresa) throw new Falha(422, "VALIDACAO", "Informe empresa_id");
-      return paginar(c, c.e.lancamentos.filter((l) => l.empresa_id === empresa).reverse());
+      return paginar(
+        c,
+        c.e.lancamentos
+          .filter((l) => l.empresa_id === empresa)
+          .map((l) => ({ ...l, contraparte: l.contraparte_id ? resumo(c, l.contraparte_id) : null }))
+          .reverse(),
+      );
     },
   ],
   [
@@ -1137,19 +1211,27 @@ const ROTAS: [string, RegExp, Manipulador][] = [
       const qv = Number(c.corpo.quantidade);
       if (!Number.isInteger(qv) || qv <= 0) throw new Falha(422, "VALIDACAO", "Quantidade deve ser um inteiro positivo");
       const pm = decimal(c, "preco_medio", 2);
-      const { debito, fator_preco } = calcularDebito(qv, mmv.rm, pm, PRECO_BASE);
+      const { debito, razao_preco, multiplicador } = calcularDebito(qv, mmv.rm, pm, PRECO_BASE);
       const saldo = saldoDe(c, u.empresa_id!);
+      const suficiente = saldo >= paraEscala(debito, 2);
+      const permitido = suficiente || hojeIso(c.agora) <= FIM_SALDO_NEGATIVO;
       return {
         urv_debito: debito,
+        saldo_atual: deEscala(saldo, 2),
         saldo_apos: deEscala(saldo - paraEscala(debito, 2), 2),
+        saldo_suficiente: suficiente,
+        permitido,
+        regularizar_ate: !suficiente && permitido ? regularizarAte(c.agora) : null,
+        prazo_saldo_negativo: FIM_SALDO_NEGATIVO,
         memoria_calculo: {
+          formula: "urv_debito = (qv / rm) * max(1, pm / pb)",
           qv,
+          nivel: mmv.nivel,
           rm: mmv.rm,
           pm,
           pb: PRECO_BASE,
-          fator_preco,
-          formula: "urv_debito = (qv / rm) × max(1, pm / pb)",
-          saldo_atual: deEscala(saldo, 2),
+          razao_preco,
+          multiplicador,
         },
       };
     },
@@ -1169,7 +1251,9 @@ const ROTAS: [string, RegExp, Manipulador][] = [
       const bruto = Array.isArray(c.corpo.chassis) ? c.corpo.chassis : [];
       const chassis = bruto.map((x) => String(x).trim().toUpperCase()).filter(Boolean);
       if (!chassis.length) throw new Falha(422, "VALIDACAO", "Informe ao menos um chassi");
-      if (new Set(chassis).size !== chassis.length) throw new Falha(422, "VALIDACAO", "Há chassi repetido na lista");
+      if (new Set(chassis).size !== chassis.length) {
+        throw new Falha(422, "CHASSI_REPETIDO_NA_LISTA", "Há chassi repetido na lista");
+      }
       // RF-21, art. 29: um chassi novo consome uma vez.
       const usados = new Set(c.e.consumos.flatMap((x) => x.chassis));
       const repetidos = chassis.filter((x) => usados.has(x));
@@ -1202,7 +1286,7 @@ const ROTAS: [string, RegExp, Manipulador][] = [
       c.e.consumos.push(consumo);
       lancar(c, u.empresa_id!, "DEBITO", `-${debito}`, { consumo_id: consumo.id });
       registrar(c, "CONSUMO_REGISTRADO", "consumo", consumo.id, { mmv_id: mmv.id, periodo, qv: consumo.qv, urv_debito: debito, chassis });
-      return verConsumo(consumo);
+      return verConsumo(c, consumo);
     },
   ],
   [
@@ -1210,11 +1294,13 @@ const ROTAS: [string, RegExp, Manipulador][] = [
     /^\/urv\/consumos$/,
     (c) => {
       const u = exigir(c, "FABRICANTE", "AUDITOR", "ADMIN");
+      const chassi = c.consulta.get("chassi")?.trim().toUpperCase(); // PM-WEB-06: busca exata
       return paginar(
         c,
         c.e.consumos
           .filter((x) => !u.empresa_id || x.fabricante_id === u.empresa_id)
-          .map(verConsumo)
+          .filter((x) => !chassi || x.chassis.includes(chassi))
+          .map((x) => verConsumo(c, x))
           .reverse(),
       );
     },
@@ -1242,13 +1328,19 @@ const ROTAS: [string, RegExp, Manipulador][] = [
         atual.soma += paraEscala(p.peso_kg, 3);
         materiais.set(chave, atual);
       }
+      const linhas = [...materiais.values()];
       return {
+        ano: ano ? Number(ano) : c.agora.getFullYear(),
+        peso_total_kg: deEscala(
+          linhas.reduce((s, m) => s + m.soma, 0n),
+          3,
+        ),
         registros: c.e.veiculos.filter((v) => noAno(v.criado_em)).length,
         certificados_emitidos: c.e.certificados.filter((x) => noAno(x.emitido_em)).length,
         urv_gerada: somar("CREDITO"),
         urv_transferida: somar("TRANSFERENCIA_ENTRADA"),
         urv_consumida: somar("DEBITO"),
-        materiais: [...materiais.values()].map(({ fracao, destino, soma }) => ({ fracao, destino, peso_kg: deEscala(soma, 3) })),
+        materiais: linhas.map(({ fracao, destino, soma }) => ({ fracao, destino, peso_kg: deEscala(soma, 3) })),
       };
     },
   ],

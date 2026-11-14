@@ -3,7 +3,7 @@
 // pesagens, DMRs, laudo, certificado, crédito, transferência e consumos).
 
 import * as api from "../../api";
-import type { Certificado, Consumo, Evento, VeiculoDetalhe } from "../../api/types";
+import type { CertificadoDetalhe, Consumo, Evento, Laudo, VeiculoDetalhe } from "../../api/types";
 import { formatarDecimal } from "../../lib/decimal";
 import {
   ROTULO_ANEXO,
@@ -28,7 +28,7 @@ export interface Marco {
 export interface LinhaDoTempo {
   chassi: string;
   veiculo: VeiculoDetalhe | null;
-  certificado: Certificado | null;
+  certificado: CertificadoDetalhe | null;
   marcos: Marco[];
   /** Eventos da trilha ligados ao veículo, como a API os registrou. */
   eventos: Evento[];
@@ -38,26 +38,29 @@ export interface LinhaDoTempo {
 
 export async function montarLinhaDoTempo(termo: string): Promise<LinhaDoTempo> {
   const chassi = termo.trim().toUpperCase();
-  const [veiculos, consumos, empresas] = await Promise.all([
+  const [veiculos, consumos, doChassi, empresas] = await Promise.all([
     api.listarVeiculos({ chassi }),
     api.listarConsumos(),
+    api.listarConsumos({ chassi }), // PM-WEB-06: o consumo em que o chassi foi usado como veículo novo
     api.listarEmpresas(),
   ]);
   const nome = (id: string | null) => empresas.itens.find((e) => e.id === id)?.razao_social ?? "empresa não identificada";
-  const consumosDoChassi = consumos.itens.filter((c) => c.chassis?.includes(chassi));
+  const consumosDoChassi = doChassi.itens;
   const achado = veiculos.itens.find((v) => v.chassi === chassi) ?? (veiculos.itens.length === 1 ? veiculos.itens[0] : null);
   if (!achado) return { chassi, veiculo: null, certificado: null, marcos: [], eventos: [], consumosDoChassi };
 
-  const [veiculo, pecas, pesagens, dmrs, certificados, eventos] = await Promise.all([
+  const [veiculo, pecas, pesagens, dmrs, eventos] = await Promise.all([
     api.obterVeiculo(achado.id),
-    api.listarPecas({ chassi: achado.chassi }),
+    api.listarPecas({ veiculo_id: achado.id }), // PM-WEB-04
     api.listarPesagens(achado.id),
     api.listarDmrs(achado.id),
-    api.listarCertificados(achado.empresa_id),
     api.listarEventos({ entidade_id: achado.id, tamanho: 100 }),
   ]);
-  const resumoCert = certificados.itens.find((c) => c.veiculo_id === achado.id);
-  const certificado = resumoCert ? await api.obterCertificado(resumoCert.id) : null;
+  // O detalhe do veículo traz `laudo_id` e `certificado_id` (PM-03 a); o laudo tem rota própria (PM-WEB-03).
+  const [laudo, certificado]: [Laudo | null, CertificadoDetalhe | null] = await Promise.all([
+    veiculo.laudo_id ? api.obterLaudo(veiculo.id) : null,
+    veiculo.certificado_id ? api.obterCertificado(veiculo.certificado_id) : null,
+  ]);
 
   const marcos: Marco[] = [
     {
@@ -77,7 +80,7 @@ export async function montarLinhaDoTempo(termo: string): Promise<LinhaDoTempo> {
       fase: "documento",
       titulo:
         `${ROTULO_ANEXO[a.tipo]} ${a.tipo === "DOCUMENTO_ENTRADA" ? "anexado" : "anexada"} ` +
-        `à etapa de ${ROTULO_ETAPA[a.etapa_tipo].toLowerCase()}`,
+        (a.etapa_tipo ? `à etapa de ${ROTULO_ETAPA[a.etapa_tipo].toLowerCase()}` : "ao veículo"),
       detalhe: a.tipo === "EVIDENCIA_CLASSIFICACAO" ? "Passa a valer o tipo declarado." : undefined,
       artigo: a.tipo === "EVIDENCIA_CLASSIFICACAO" ? "art. 6º I c" : undefined,
     });
@@ -93,7 +96,7 @@ export async function montarLinhaDoTempo(termo: string): Promise<LinhaDoTempo> {
       });
     }
   }
-  for (const p of pecas.itens.filter((x) => x.veiculo_id === veiculo.id)) {
+  for (const p of pecas.itens) {
     marcos.push({
       quando: p.criado_em,
       fase: "fluxo",
@@ -120,16 +123,16 @@ export async function montarLinhaDoTempo(termo: string): Promise<LinhaDoTempo> {
     });
   }
 
+  if (laudo) {
+    marcos.push({
+      quando: laudo.assinado_em,
+      fase: "documento",
+      titulo: "Laudo de Reciclagem assinado",
+      detalhe: `${laudo.responsavel_nome}, registro ${laudo.responsavel_registro}.`,
+      artigo: "art. 18 VII",
+    });
+  }
   if (certificado) {
-    if (certificado.laudo) {
-      marcos.push({
-        quando: certificado.laudo.assinado_em,
-        fase: "documento",
-        titulo: "Laudo de Reciclagem assinado",
-        detalhe: `${certificado.laudo.responsavel_nome}, registro ${certificado.laudo.responsavel_registro}.`,
-        artigo: "art. 18 VII",
-      });
-    }
     marcos.push({
       quando: certificado.emitido_em,
       fase: "documento",
@@ -141,8 +144,10 @@ export async function montarLinhaDoTempo(termo: string): Promise<LinhaDoTempo> {
     });
     const credito = certificado.credito;
     if (credito) {
+      // O crédito nasce na mesma transação do certificado (RF-16, art. 18 §3º).
+      const geradoEm = certificado.emitido_em;
       marcos.push({
-        quando: credito.criado_em,
+        quando: geradoEm,
         fase: "urv",
         titulo: `Crédito de ${formatarDecimal(credito.quantidade)} URV gerado para ${nome(credito.geradora_id)}`,
         artigo: "art. 3º §§1º e 2º",
@@ -150,7 +155,7 @@ export async function montarLinhaDoTempo(termo: string): Promise<LinhaDoTempo> {
       if (credito.status === "TRANSFERIDO") {
         const extrato = await api.listarExtrato(credito.geradora_id);
         const saida = extrato.itens.find((l) => l.credito_id === credito.id && l.tipo === "TRANSFERENCIA_SAIDA");
-        const transferidoEm = saida?.criado_em ?? credito.criado_em;
+        const transferidoEm = saida?.criado_em ?? geradoEm;
         marcos.push({
           quando: transferidoEm,
           fase: "urv",

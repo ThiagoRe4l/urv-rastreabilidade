@@ -173,11 +173,15 @@ describe("roteiro de demonstração no mock", () => {
     expect(cert.corpo.meta_ano).toBeNull(); // 2026: sem meta, só registro
     expect(chamar<T.Saldo>(OPERADOR, "GET", "/urv/saldo").corpo.saldo).toBe("0.85");
     expect(detalhe().pendencias_certificado).toEqual([]);
-    // A interface acha o certificado pela lista e depois pede o detalhe.
-    const lista = chamar<T.Pagina<T.Certificado>>(OPERADOR, "GET", "/certificados").corpo.itens;
-    const completo = chamar<T.Certificado>(OPERADOR, "GET", `/certificados/${lista[0].id}`).corpo;
+    // O detalhe do veículo aponta o certificado (PM-03 a) e o laudo tem rota própria (PM-WEB-03).
+    const certificadoId = detalhe().certificado_id;
+    expect(certificadoId).toBe(cert.corpo.id);
+    const completo = chamar<T.CertificadoDetalhe>(OPERADOR, "GET", `/certificados/${certificadoId}`).corpo;
     expect(completo.laudo?.responsavel_nome).toBe("Ana Souza");
     expect(completo.credito?.status).toBe("DISPONIVEL");
+    expect(chamar<T.Laudo>(OPERADOR, "GET", `/veiculos/${id}/laudo`).corpo.responsavel_nome).toBe("Ana Souza");
+    // PM-04: segunda emissão é conflito, não pendência.
+    expect(chamar(OPERADOR, "POST", `/veiculos/${id}/certificado`).status).toBe(409);
 
     etapa("DESTINACAO");
     expect(detalhe().estado).toBe("ENCERRADO");
@@ -280,7 +284,11 @@ describe("roteiro de demonstração no mock", () => {
     expect(aceito.corpo).toMatchObject({ urv_debito: "0.20", saldo_apos: "-0.20", regularizar_ate: "2027-02-28" });
     // Período de outubro, registrado em 13/11, antes do décimo dia útil de novembro.
     expect(aceito.corpo).toMatchObject({ prazo_reporte: "2026-11-13", fora_do_prazo: false });
-    expect(chamar<T.Saldo>(FISCAL, "GET", "/urv/saldo").corpo).toEqual({ saldo: "-0.20", regularizar_ate: "2027-02-28" });
+    expect(chamar<T.Saldo>(FISCAL, "GET", "/urv/saldo").corpo).toEqual({
+      empresa_id: ID_FABRICANTE,
+      saldo: "-0.20",
+      regularizar_ate: "2027-02-28",
+    });
 
     relogio.agora = new Date(2028, 0, 3, 9, 0);
     const recusado = consumir("9BWZZZ377VT200002");

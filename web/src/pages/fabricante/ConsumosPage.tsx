@@ -8,7 +8,7 @@ import { fmtData, fmtDataHora, fmtPeriodo } from "../../lib/formato";
 
 /** Consumos de URV já registrados, com o prazo de reporte e a regularização pendente (RF-19, RF-20). */
 export function ConsumosPage() {
-  const consumos = useQuery({ queryKey: ["consumos"], queryFn: listarConsumos });
+  const consumos = useQuery({ queryKey: ["consumos"], queryFn: () => listarConsumos() });
   const mmvs = useQuery({ queryKey: ["mmvs"], queryFn: listarMmvs });
   const saldo = useQuery({ queryKey: ["saldo"], queryFn: obterSaldo });
   const negativo = saldo.data ? compararDecimal(saldo.data.saldo, "0") < 0 : false;

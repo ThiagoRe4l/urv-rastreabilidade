@@ -136,12 +136,10 @@ export function NovoConsumoPage() {
                   <span>Débito</span>
                   <strong>{formatarDecimal(s.urv_debito)} URV</strong>
                 </div>
-                {s.memoria_calculo.saldo_atual !== undefined && (
-                  <div className="cartao-numero">
-                    <span>Saldo atual</span>
-                    <strong>{formatarDecimal(s.memoria_calculo.saldo_atual)} URV</strong>
-                  </div>
-                )}
+                <div className="cartao-numero">
+                  <span>Saldo atual</span>
+                  <strong>{formatarDecimal(s.saldo_atual)} URV</strong>
+                </div>
                 <div className={`cartao-numero ${ficaNegativo ? "cartao-alerta" : ""}`}>
                   <span>Saldo após o consumo</span>
                   <strong>{formatarDecimal(s.saldo_apos)} URV</strong>
@@ -160,8 +158,10 @@ export function NovoConsumoPage() {
                 <dd>R$ {formatarDecimal(s.memoria_calculo.pm)}</dd>
                 <dt>pb — preço base</dt>
                 <dd>R$ {formatarDecimal(s.memoria_calculo.pb)}</dd>
+                <dt>pm / pb</dt>
+                <dd>{formatarDecimal(s.memoria_calculo.razao_preco)}</dd>
                 <dt>max(1, pm / pb)</dt>
-                <dd>{formatarDecimal(s.memoria_calculo.fator_preco)}</dd>
+                <dd>{formatarDecimal(s.memoria_calculo.multiplicador)}</dd>
                 <dt>Débito (duas casas, arredondamento para cima na metade)</dt>
                 <dd>
                   <strong>{formatarDecimal(s.urv_debito)} URV</strong>

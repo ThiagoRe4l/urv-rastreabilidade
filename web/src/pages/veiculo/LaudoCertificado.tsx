@@ -10,7 +10,7 @@ import { formatarDecimal } from "../../lib/decimal";
 import { ROTULO_CREDITO, ROTULO_TIPO_VEICULO } from "../../lib/dominio";
 import { fmtDataHora, hashCurto } from "../../lib/formato";
 import { useRecarregar } from "../../lib/useRecarregar";
-import { useCertificadoDoVeiculo } from "./apoio";
+import { useCertificadoDoVeiculo, useLaudoDoVeiculo } from "./apoio";
 
 function DadosLaudo({ laudo }: { laudo: Laudo }) {
   return (
@@ -33,6 +33,7 @@ function DadosLaudo({ laudo }: { laudo: Laudo }) {
 export function LaudoCertificado({ veiculo, podeEscrever }: { veiculo: VeiculoDetalhe; podeEscrever: boolean }) {
   const recarregar = useRecarregar();
   const certificado = useCertificadoDoVeiculo(veiculo);
+  const laudoSalvo = useLaudoDoVeiculo(veiculo);
   const [nome, setNome] = useState("");
   const [registro, setRegistro] = useState("");
 
@@ -45,7 +46,7 @@ export function LaudoCertificado({ veiculo, podeEscrever }: { veiculo: VeiculoDe
   const temLaudo = veiculo.estado !== "RECEBIDO" && veiculo.estado !== "EM_PROCESSO";
   const temCertificado = veiculo.estado === "CERTIFICADO" || veiculo.estado === "ENCERRADO";
   const cert = certificado.data ?? emitir.data ?? null;
-  const dadosLaudo = cert?.laudo ?? laudo.data ?? null;
+  const dadosLaudo = laudoSalvo.data ?? laudo.data ?? null;
   const etapaConcluida = (tipo: string) => veiculo.etapas.some((e) => e.tipo === tipo && e.concluida_em);
   const laudoLiberado = etapaConcluida("DESCONTAMINACAO") && etapaConcluida("DESTRUICAO");
 

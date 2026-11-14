@@ -25,18 +25,18 @@ function LinhaPeca({ peca, podeEscrever, aoEtiquetar }: { peca: Peca; podeEscrev
       </td>
       <td>
         {ROTULO_CLASSIFICACAO[peca.classificacao]}
-        <div className="sutil">{ROTULO_CONDICAO[peca.condicao]}</div>
+        {peca.condicao && <div className="sutil">{ROTULO_CONDICAO[peca.condicao]}</div>}
       </td>
       <td>
         {podeEscrever ? (
           <Selecao
-            valor={peca.destino}
+            valor={peca.destino ?? ""}
             aoMudar={(destino) => alterar.mutate({ destino })}
             opcoes={ROTULO_DESTINO_PECA}
             disabled={alterar.isPending}
           />
         ) : (
-          ROTULO_DESTINO_PECA[peca.destino]
+          (peca.destino ? ROTULO_DESTINO_PECA[peca.destino] : "—")
         )}
       </td>
       <td>

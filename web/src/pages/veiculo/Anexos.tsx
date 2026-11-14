@@ -77,7 +77,7 @@ export function ListaAnexos({ anexos }: { anexos: Anexo[] }) {
           <li key={a.id}>
             <button type="button" className="botao-link" onClick={() => abrir.mutate(a.id)}>
               {ROTULO_ANEXO[a.tipo]}
-              {a.nome_arquivo ? `: ${a.nome_arquivo}` : ""}
+              {a.nome_original ? `: ${a.nome_original}` : ""}
             </button>
             <span className="sutil">
               {fmtDataHora(a.criado_em)} · sha256 <span className="mono">{hashCurto(a.sha256)}</span>

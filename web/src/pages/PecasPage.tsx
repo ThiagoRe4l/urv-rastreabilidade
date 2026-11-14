@@ -66,12 +66,12 @@ export function PecasPage() {
                     <td>{p.nome}</td>
                     <td>
                       <Link className="mono" to={`/veiculos/${p.veiculo_id}`}>
-                        {p.chassi ?? p.etiqueta?.chassi ?? "ver veículo"}
+                        {p.chassi}
                       </Link>
                     </td>
                     <td>{ROTULO_CLASSIFICACAO[p.classificacao]}</td>
-                    <td>{ROTULO_CONDICAO[p.condicao]}</td>
-                    <td>{ROTULO_DESTINO_PECA[p.destino]}</td>
+                    <td>{p.condicao ? ROTULO_CONDICAO[p.condicao] : "—"}</td>
+                    <td>{p.destino ? ROTULO_DESTINO_PECA[p.destino] : "—"}</td>
                     <td>
                       {p.etiqueta ? (
                         <button type="button" className="botao-link mono" onClick={() => setEtiqueta(p.etiqueta)}>
