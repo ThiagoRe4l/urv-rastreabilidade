@@ -10,6 +10,7 @@ import { BuscaPage } from "./pages/auditor/BuscaPage";
 import { PainelPage } from "./pages/auditor/PainelPage";
 import { CreditosPage } from "./pages/CreditosPage";
 import { ConsumosPage } from "./pages/fabricante/ConsumosPage";
+import { DossiePage } from "./pages/fabricante/DossiePage";
 import { MmvsPage } from "./pages/fabricante/MmvsPage";
 import { NovoConsumoPage } from "./pages/fabricante/NovoConsumoPage";
 import { UrvPage } from "./pages/fabricante/UrvPage";
@@ -54,6 +55,7 @@ export function App() {
           <Route path="/urv" element={<UrvPage />} />
           <Route path="/consumos" element={<ConsumosPage />} />
           <Route path="/consumos/novo" element={<NovoConsumoPage />} />
+          <Route path="/dossies/:certificadoId" element={<DossiePage />} />
         </Route>
         <Route element={<Area papeis={["FABRICANTE", ...LEITURA]} />}>
           <Route path="/mmvs" element={<MmvsPage />} />

@@ -54,6 +54,7 @@ export function UrvPage() {
                   <th>Chassi reciclado</th>
                   <th className="num">URV</th>
                   <th>Gerado em</th>
+                  <th>Dossiê</th>
                 </tr>
               </thead>
               <tbody>
@@ -63,6 +64,11 @@ export function UrvPage() {
                     <td className="mono">{c.chassi ?? "—"}</td>
                     <td className="num">{formatarDecimal(c.quantidade)}</td>
                     <td>{fmtDataHora(c.criado_em)}</td>
+                    <td>
+                      {/* Art. 9º: o titular lê certificado, laudo, anexos e DMRs do veículo de origem. */}
+                      <Link to={`/dossies/${c.certificado_id}`}>Ver documentação</Link>
+                      {c.importado && <span className="sutil"> · importado</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
