@@ -11,6 +11,11 @@ Uma linha por lacuna: o que falta, por quê, e o artigo. Requisitos marcados "N�
 | L-05 | O credenciamento guarda só status e validade. Documentos de instrução, auditoria técnica anual e processo administrativo de suspensão não são registrados. | RF-01 prevê no MVP apenas o lançamento pelo admin. | Art. 11 §2º; art. 13 §1º; art. 17 §1º | fundação |
 | L-06 | O licenciamento regular (Renavam ativo, IPVA e licenciamento quitados) só é verificável pela `ConsultaRenavam` falsa. | Integração externa simulada no MVP. | Art. 2º I; art. 6º I c | fundação |
 | L-07 | A assinatura do laudo é simulada (HMAC com chave do servidor). Ela prova integridade, não a identidade do responsável técnico. | ICP-Brasil está fora do MVP. | Art. 18 VII; Anexo III 15.b | fundação |
+| L-08 | A recepção não consulta o Renavam nem valida a nota fiscal de entrada: `ConsultaRenavam` e `ValidadorNotaFiscal` existem, mas `POST /veiculos` não os chama. | O contrato não define o que fazer com veículo não encontrado ou nota inválida (bloquear ou só alertar). | Art. 2º I; art. 6º I a e c | backend-fluxo |
+| L-09 | O laudo retrata o veículo no momento da assinatura (`hash_conteudo`). Pesagens, peças e etapas lançadas entre o laudo e o certificado não invalidam o laudo nem pedem nova assinatura. | O laudo é único por veículo e não há rota para reemiti-lo. | Art. 18 VII; Anexo III 15.b | backend-fluxo |
+| L-10 | Peça não reutilizável enviada a remanufatura ou recondicionamento também precisa estar marcada como descaracterizada para o certificado sair. | A pré-condição 5 da arquitetura exige descaracterização de toda peça não reutilizável, sem distinguir o destino do Anexo III 10.d. | Anexo III 7 e 10 | backend-fluxo |
+| L-11 | A data da etiqueta da peça é a do registro da peça na plataforma. | A portaria pede "data" na etiqueta sem dizer qual (entrada, desmontagem ou etiquetagem). | Anexo III 8 | backend-fluxo |
+| L-12 | Anexos não podem ser removidos nem substituídos, e não há antivírus: o tipo do arquivo é conferido só pelos primeiros bytes. | Fora do escopo do MVP. | Art. 20 VI | backend-fluxo |
 
 ## Divergências entre a portaria e os documentos, já resolvidas
 
