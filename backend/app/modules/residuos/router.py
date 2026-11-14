@@ -18,7 +18,7 @@ from app.models import Usuario
 from app.modules.residuos import service
 from app.modules.residuos.schemas import DmrCriar, DmrSaida, PesagemCriar, PesagemSaida, PesagensSaida
 from app.modules.veiculos import service as veiculos
-from app.modules.veiculos.papeis import escreve_fluxo, le_fluxo
+from app.modules.veiculos.papeis import escreve_fluxo, le_dossie, le_fluxo
 
 router = APIRouter(tags=["residuos"])
 
@@ -87,7 +87,7 @@ def emitir_dmr(
 def listar_dmrs(
     veiculo_id: uuid.UUID,
     session: Session = Depends(obter_sessao),
-    usuario: Usuario = Depends(le_fluxo),
+    usuario: Usuario = Depends(le_dossie),
 ) -> Pagina[DmrSaida]:
     veiculo = veiculos.obter_veiculo(session, usuario, veiculo_id)
     dmrs = service.dmrs_do_veiculo(session, veiculo.id)

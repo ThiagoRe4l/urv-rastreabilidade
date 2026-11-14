@@ -28,7 +28,7 @@ Origem: Portaria GM/MDIC nº 325, de 6 de novembro de 2026 (`portaria-325-2026.p
 | RF-20 | Prazo de reporte do consumo: décimo dia útil do mês seguinte | Art. 7º, parágrafo único | Sim, como alerta |
 | RF-21 | Unicidade: um chassi em fim de vida gera crédito uma vez; um chassi novo consome uma vez. O chassi em fim de vida é VIN, e Renavam e certidão de baixa não se repetem entre chassis | Arts. 28 e 29; art. 18 II | Sim |
 | RF-22 | Trilha de auditoria imutável e verificável de todos os eventos | Art. 20 V; art. 24 I | Sim, cadeia de hashes, gatilhos e reconciliação com as tabelas de negócio; sem ancoragem externa (L-14) |
-| RF-23 | Visão de auditoria com leitura de todos os registros | Art. 9º; art. 24 V | Sim |
+| RF-23 | Visão de auditoria com leitura de todos os registros; o fabricante titular de um crédito lê certificado, laudo, anexos e DMRs do veículo de origem, que precisa guardar e apresentar | Art. 9º; art. 10; art. 24 V | Sim |
 | RF-24 | Relatórios ao MDIC: registros e certificados emitidos, volume de materiais, incidentes | Art. 27 | Parcial: os dois primeiros |
 | RF-25 | Exportação padronizada para portabilidade e reconciliação entre plataformas | Art. 22 | Sim, JSON |
 | RF-26 | Guarda de documentos por cinco anos | Art. 9º, parágrafo único | Não, só documentado |

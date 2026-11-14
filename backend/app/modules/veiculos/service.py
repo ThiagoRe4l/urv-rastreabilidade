@@ -17,11 +17,14 @@ from app.core.erros import ErroNegocio, NaoEncontrado
 from app.models import (
     Anexo,
     AnexoTipo,
+    Certificado,
     Dmr,
     EstadoVeiculo,
     Etapa,
     EtapaTipo,
+    Papel,
     TipoVeiculo,
+    UrvCredito,
     Usuario,
     Veiculo,
 )
@@ -46,6 +49,31 @@ def consulta_veiculos(usuario: Usuario, estado: EstadoVeiculo | None, chassi: st
     return stmt.order_by(Veiculo.criado_em.desc(), Veiculo.id)
 
 
+def titular_de_credito_do_veiculo(
+    session: Session, empresa_id: uuid.UUID | None, veiculo_id: uuid.UUID
+) -> bool:
+    """A empresa é titular do crédito gerado pelo certificado do veículo. RF-23, art. 9º."""
+    return empresa_id is not None and bool(
+        session.scalar(
+            select(UrvCredito.id)
+            .join(Certificado, Certificado.id == UrvCredito.certificado_id)
+            .where(Certificado.veiculo_id == veiculo_id, UrvCredito.titular_id == empresa_id)
+        )
+    )
+
+
+def garantir_leitura_veiculo(
+    session: Session, usuario: Usuario, veiculo: Veiculo, entidade: str = "Veículo"
+) -> None:
+    """Quem lê o veículo: a empresa dona, ADMIN e AUDITOR e, só para o dossiê, o fabricante titular
+    do crédito que ele gerou (RF-23, art. 9º; A8 da revisão). Os demais recebem 404."""
+    if usuario.papel == Papel.FABRICANTE:
+        if not titular_de_credito_do_veiculo(session, usuario.empresa_id, veiculo.id):
+            raise NaoEncontrado(entidade)
+        return
+    garantir_acesso_empresa(usuario, veiculo.empresa_id, entidade)
+
+
 def obter_veiculo(
     session: Session, usuario: Usuario, veiculo_id: uuid.UUID, *, bloquear: bool = False
 ) -> Veiculo:
@@ -60,7 +88,7 @@ def obter_veiculo(
     veiculo = session.scalar(stmt)
     if veiculo is None:
         raise NaoEncontrado("Veículo")
-    garantir_acesso_empresa(usuario, veiculo.empresa_id, "Veículo")
+    garantir_leitura_veiculo(session, usuario, veiculo)
     return veiculo
 
 
@@ -350,5 +378,5 @@ def obter_anexo(session: Session, usuario: Usuario, anexo_id: uuid.UUID) -> Anex
     anexo = session.get(Anexo, anexo_id)
     if anexo is None:
         raise NaoEncontrado("Anexo")
-    garantir_acesso_empresa(usuario, anexo.veiculo.empresa_id, "Anexo")
+    garantir_leitura_veiculo(session, usuario, anexo.veiculo, "Anexo")
     return anexo

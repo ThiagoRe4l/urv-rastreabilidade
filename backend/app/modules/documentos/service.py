@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.core import relogio
 from app.core.configuracao import fator_vigente
-from app.core.deps import filtrar_por_empresa, garantir_acesso_empresa
+from app.core.deps import filtrar_por_empresa
 from app.core.erros import ErroNegocio, NaoEncontrado
 from app.core.integracoes import AssinadorDigital
 from app.models import (
@@ -26,6 +26,7 @@ from app.models import (
     EstadoVeiculo,
     EtapaTipo,
     Laudo,
+    Papel,
     Peca,
     PecaClassificacao,
     UrvCredito,
@@ -358,7 +359,15 @@ def emitir_certificado(
 
 
 def consulta_certificados(usuario: Usuario, empresa_id: uuid.UUID | None) -> Select:
-    stmt = filtrar_por_empresa(select(Certificado), Certificado.empresa_id, usuario)
+    if usuario.papel == Papel.FABRICANTE:
+        # RF-23, art. 9º: o fabricante vê os certificados dos créditos de que é titular (A8).
+        stmt = (
+            select(Certificado)
+            .join(UrvCredito, UrvCredito.certificado_id == Certificado.id)
+            .where(UrvCredito.titular_id == usuario.empresa_id)
+        )
+    else:
+        stmt = filtrar_por_empresa(select(Certificado), Certificado.empresa_id, usuario)
     if empresa_id is not None:
         stmt = stmt.where(Certificado.empresa_id == empresa_id)
     return stmt.order_by(Certificado.emitido_em.desc(), Certificado.id)
@@ -368,7 +377,7 @@ def obter_certificado(session: Session, usuario: Usuario, certificado_id: uuid.U
     certificado = session.get(Certificado, certificado_id)
     if certificado is None:
         raise NaoEncontrado("Certificado")
-    garantir_acesso_empresa(usuario, certificado.empresa_id, "Certificado")
+    veiculos.garantir_leitura_veiculo(session, usuario, certificado.veiculo, "Certificado")  # RF-23, art. 9º
     return certificado
 
 

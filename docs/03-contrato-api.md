@@ -30,7 +30,7 @@ Todo valor `Decimal` (URV, fator, preço, peso, percentual) trafega como string 
 
 ## Fluxo do veículo (backend-fluxo)
 
-Papel: DESMONTADORA e RECICLADORA escrevem nos próprios veículos; AUDITOR e ADMIN leem tudo; FABRICANTE recebe 403 `PAPEL_NAO_PERMITIDO` em todas as rotas desta seção (PM-03 h). Registro de outra empresa responde 404.
+Papel: DESMONTADORA e RECICLADORA escrevem nos próprios veículos; AUDITOR e ADMIN leem tudo; FABRICANTE recebe 403 `PAPEL_NAO_PERMITIDO` nas rotas desta seção (PM-03 h), exceto nas de leitura do dossiê: `GET /veiculos/{id}`, `GET /veiculos/{id}/laudo`, `GET /veiculos/{id}/dmrs`, `GET /anexos/{id}/arquivo`, `GET /certificados` e `GET /certificados/{id}`. Nelas o fabricante lê o veículo que gerou um crédito de que ele é titular, porque guarda e apresenta essa documentação (art. 9º; art. 10; achado A8 da revisão); veículo de que não é titular responde 404. Registro de outra empresa responde 404.
 
 Depois do certificado, o que ele atesta não muda: pesagem, peça nova e etapa diferente de `DESTINACAO` devolvem 409 `VEICULO_CERTIFICADO`, e evidência de classificação que mudaria o tipo devolve 409 `TIPO_IMUTAVEL_APOS_CERTIFICADO` (PM-03 f).
 
@@ -53,7 +53,7 @@ Depois do certificado, o que ele atesta não muda: pesagem, peça nova e etapa d
 | `POST /veiculos/{id}/laudo` | `responsavel_nome`, `responsavel_registro` | Laudo. Exige etapas de descontaminação e destruição concluídas: 422 `PENDENCIAS_LAUDO` com `pendencias`. 409 `LAUDO_JA_EMITIDO` (PM-03 e) |
 | `GET /veiculos/{id}/laudo` | | Laudo, antes ou depois do certificado. 404 `NAO_ENCONTRADO` se ainda não foi assinado (PM-WEB-03) |
 | `POST /veiculos/{id}/certificado` | | Certificado com `credito`. 422 `PENDENCIAS_CERTIFICADO` com `pendencias` (pré-condições 1 a 7). 409 `CERTIFICADO_JA_EMITIDO` se o chassi já tem certificado (pré-condição 8; PM-04) |
-| `GET /certificados` | `?empresa_id=` | Lista de Certificado |
+| `GET /certificados` | `?empresa_id=` | Lista de Certificado. Para FABRICANTE, os certificados dos créditos de que é titular (A8) |
 | `GET /certificados/{id}` | | Certificado com laudo, veículo e crédito |
 
 ## URV e MMV (backend-urv)

@@ -14,10 +14,12 @@ from tests.unit.fluxo.apoio import (
     PNG,
     VEICULOS,
     anexar,
+    certificado,
     criar_veiculo,
     dados_veiculo,
     etapa,
     eventos,
+    executar_passos,
     peca,
 )
 
@@ -215,8 +217,33 @@ def test_fabricante_fica_fora_do_fluxo(client, h, auth) -> None:
     v = criar_veiculo(client, h)
     fab = auth(EMAIL_FABRICANTE)
     assert client.get(VEICULOS, headers=fab).status_code == 403
-    assert client.get(f"{VEICULOS}/{v['id']}", headers=fab).status_code == 403
+    assert client.get(f"{VEICULOS}/{v['id']}/pesagens", headers=fab).status_code == 403
+    # O dossiê só é do titular de um crédito do veículo (A8): sem ele, 404, sem revelar que existe.
+    assert client.get(f"{VEICULOS}/{v['id']}", headers=fab).status_code == 404
     assert client.post(VEICULOS, json=dados_veiculo(chassi="XXXXXXXX1"), headers=fab).status_code == 403
+
+
+def test_fabricante_titular_le_o_dossie(client, h, auth, dados_demo) -> None:
+    """RF-23, art. 9º: o titular do crédito lê certificado, laudo, anexos e DMRs (A8 da revisão)."""
+    v = criar_veiculo(client, h)
+    executar_passos(client, h, v["id"])
+    cert = certificado(client, h, v["id"]).json()
+    fab = auth(EMAIL_FABRICANTE)
+    assert client.get(f"{API}/certificados", headers=fab).json()["total"] == 0
+    r = client.post(
+        f"{API}/urv/creditos/{cert['credito']['id']}/transferir",
+        json={"fabricante_id": str(dados_demo.montadora_id)},
+        headers=h,
+    )
+    assert r.status_code == 200, r.text
+    assert [c["id"] for c in client.get(f"{API}/certificados", headers=fab).json()["itens"]] == [cert["id"]]
+    assert client.get(f"{API}/certificados/{cert['id']}", headers=fab).status_code == 200
+    assert client.get(f"{VEICULOS}/{v['id']}/laudo", headers=fab).status_code == 200
+    assert client.get(f"{VEICULOS}/{v['id']}/dmrs", headers=fab).status_code == 200
+    anexos = client.get(f"{VEICULOS}/{v['id']}", headers=fab).json()["anexos"]
+    assert anexos and all(
+        client.get(f"{API}/anexos/{a['id']}/arquivo", headers=fab).status_code == 200 for a in anexos
+    )
 
 
 def test_sem_token(client, dados_demo) -> None:

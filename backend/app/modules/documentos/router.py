@@ -18,7 +18,7 @@ from app.models import Usuario
 from app.modules.documentos import service
 from app.modules.documentos.schemas import CertificadoDetalhe, CertificadoSaida, LaudoCriar, LaudoSaida
 from app.modules.veiculos import service as veiculos
-from app.modules.veiculos.papeis import escreve_fluxo, le_fluxo
+from app.modules.veiculos.papeis import escreve_fluxo, le_dossie
 
 router = APIRouter(tags=["documentos"])
 
@@ -47,7 +47,7 @@ def emitir_laudo(
 def ler_laudo(
     veiculo_id: uuid.UUID,
     session: Session = Depends(obter_sessao),
-    usuario: Usuario = Depends(le_fluxo),
+    usuario: Usuario = Depends(le_dossie),
 ) -> LaudoSaida:
     """Laudo do veículo, antes ou depois do certificado. 404 se ainda não foi assinado (PM-WEB-03)."""
     veiculo = veiculos.obter_veiculo(session, usuario, veiculo_id)  # 404 se for de outra empresa
@@ -79,7 +79,7 @@ def listar_certificados(
     empresa_id: uuid.UUID | None = Query(None),
     pag: Paginacao = Depends(paginacao),
     session: Session = Depends(obter_sessao),
-    usuario: Usuario = Depends(le_fluxo),
+    usuario: Usuario = Depends(le_dossie),
 ) -> Pagina[CertificadoSaida]:
     itens, total = paginar(session, service.consulta_certificados(usuario, empresa_id), pag)
     return Pagina[CertificadoSaida](itens=service.certificados_para_saida(session, itens), total=total)
@@ -89,7 +89,7 @@ def listar_certificados(
 def detalhar_certificado(
     certificado_id: uuid.UUID,
     session: Session = Depends(obter_sessao),
-    usuario: Usuario = Depends(le_fluxo),
+    usuario: Usuario = Depends(le_dossie),
 ) -> CertificadoDetalhe:
     certificado = service.obter_certificado(session, usuario, certificado_id)
     return service.certificado_detalhe(session, certificado)

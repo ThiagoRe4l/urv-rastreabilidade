@@ -19,7 +19,7 @@ from app.models import AnexoTipo, EstadoVeiculo, EtapaTipo, Usuario
 from app.modules.documentos import service as documentos
 from app.modules.residuos import service as residuos
 from app.modules.veiculos import service
-from app.modules.veiculos.papeis import escreve_fluxo, le_fluxo
+from app.modules.veiculos.papeis import escreve_fluxo, le_dossie, le_fluxo
 from app.modules.veiculos.schemas import (
     AnexoSaida,
     EtapaEntrada,
@@ -61,7 +61,7 @@ def listar_veiculos(
 def detalhar_veiculo(
     veiculo_id: uuid.UUID,
     session: Session = Depends(obter_sessao),
-    usuario: Usuario = Depends(le_fluxo),
+    usuario: Usuario = Depends(le_dossie),
     momento: datetime = Depends(agora),
 ) -> VeiculoDetalhe:
     veiculo = service.obter_veiculo(session, usuario, veiculo_id)
@@ -138,7 +138,7 @@ def enviar_anexo(
 def baixar_anexo(
     anexo_id: uuid.UUID,
     session: Session = Depends(obter_sessao),
-    usuario: Usuario = Depends(le_fluxo),
+    usuario: Usuario = Depends(le_dossie),
 ) -> FileResponse:
     anexo = service.obter_anexo(session, usuario, anexo_id)
     return FileResponse(
