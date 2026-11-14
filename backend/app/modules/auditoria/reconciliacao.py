@@ -201,9 +201,12 @@ def reconciliar(session: Session) -> ResultadoReconciliacao:
         conferir_lancamento(cred, LancamentoTipo.TRANSFERENCIA_SAIDA, -q, cred.geradora_id, obrigatorio=saiu)
         # Crédito importado já transferido: a entrada do fabricante só existe depois que o arquivo
         # dele também é importado (L-URV-08).
-        importado = c.evento(cred.id, "CREDITO_IMPORTADO") is not None
         conferir_lancamento(
-            cred, LancamentoTipo.TRANSFERENCIA_ENTRADA, q, cred.titular_id, obrigatorio=saiu and not importado
+            cred,
+            LancamentoTipo.TRANSFERENCIA_ENTRADA,
+            q,
+            cred.titular_id,
+            obrigatorio=saiu and not cred.importado,
         )
         if not saiu and por_credito[cred.id].keys() - {LancamentoTipo.CREDITO}:
             c.divergir(

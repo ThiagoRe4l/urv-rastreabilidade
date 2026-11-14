@@ -40,7 +40,7 @@ Origem: Portaria GM/MDIC nº 325, de 6 de novembro de 2026 (`portaria-325-2026.p
 | RNF-01 | Confidencialidade, integridade, autenticidade e imutabilidade dos registros | Art. 20 V; art. 24 I | Tabelas só de inserção (trilha, livro, consumo, certificado, laudo), crédito em que só status e titular mudam, eventos encadeados por hash, rotas de verificação e de reconciliação, acesso por papel |
 | RNF-02 | Segurança cibernética e LGPD | Art. 20 VI | Dados pessoais mínimos; política documentada |
 | RNF-03 | APIs seguras e padrões abertos | Art. 20 VII | REST, OpenAPI, token JWT |
-| RNF-04 | Interoperabilidade entre plataformas | Art. 22; art. 21 §5º; art. 28 | Exportação e importação em JSON versionado; rejeição de chassi já creditado |
+| RNF-04 | Interoperabilidade entre plataformas | Art. 22; art. 21 §5º; art. 28 | Exportação e importação em JSON versionado; hash obrigatório; importação só para geradora credenciada; certificado e crédito marcados como importados; rejeição de chassi já creditado. Sem assinatura de origem (L-15) |
 | RNF-05 | Sem aprisionamento do usuário | Art. 19 §2º; art. 24 X | Histórico completo exportável pela própria empresa |
 | RNF-06 | Acesso supervisionado do MDIC | Art. 24 V | Papel AUDITOR, somente leitura |
 | RNF-07 | Mecanismos antifraude | Art. 21 III; art. 25 VI | Unicidade de chassi, certificado bloqueado sem evidências, trilha verificável |

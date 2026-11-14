@@ -48,6 +48,7 @@ class CreditoResumo(BaseModel):
     status: UrvCreditoStatus
     geradora_id: uuid.UUID
     titular_id: uuid.UUID
+    importado: bool = Field(description="Gerado em outra plataforma e trazido pela portabilidade")
 
 
 class CertificadoSaida(BaseModel):
@@ -63,6 +64,7 @@ class CertificadoSaida(BaseModel):
     atende_meta: bool | None = Field(description="Alerta, não bloqueio (RF-12)")
     emitido_em: datetime
     hash_conteudo: str
+    importado: bool = Field(description="Emitido em outra plataforma e trazido pela portabilidade (art. 22)")
     credito: CreditoResumo | None
 
 

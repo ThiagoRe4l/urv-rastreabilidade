@@ -234,7 +234,9 @@ class ArquivoPortabilidade(BaseModel):
     mmvs: list[MmvPortavel] = []
     consumos: list[ConsumoPortavel] = []
     saldo: Decimal = Field(max_digits=14, decimal_places=2, description="Saldo de URV na origem")
-    hash_conteudo: str | None = Field(None, pattern=_HASH)
+    hash_conteudo: str | None = Field(
+        None, pattern=_HASH, description="Obrigatório na importação (422 HASH_AUSENTE)"
+    )
 
 
 class ItemImportado(BaseModel):

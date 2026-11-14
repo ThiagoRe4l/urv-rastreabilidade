@@ -73,7 +73,7 @@ Rotas "da empresa" usam a empresa do token. AUDITOR e ADMIN não têm empresa: e
 | `GET /urv/consumos` | FABRICANTE, AUDITOR, ADMIN | `?empresa_id=&chassi=` | Lista de Consumo com `fora_do_prazo` e `chassis`. `chassi` é busca exata, normalizada como no registro (PM-WEB-06) |
 | `GET /relatorios/mdic` | AUDITOR, ADMIN | `?ano=` | `registros`, `certificados_emitidos`, `urv_gerada`, `urv_transferida`, `urv_consumida`, `materiais` (peso por fração e destino) |
 | `GET /portabilidade/exportar` | empresa; AUDITOR e ADMIN com `?empresa_id=` | | Arquivo JSON versionado com todo o histórico da empresa |
-| `POST /portabilidade/importar` | ADMIN | O documento exportado, no corpo, como `application/json`, não multipart (PM-URV-03 b) | `importados` (lista de `{tipo, chave}`), `rejeitados` (lista de `{tipo, chave, motivo, detalhe}`; motivo, por exemplo, `CHASSI_JA_CREDITADO`), `total_importados`, `total_rejeitados`, `saldo_arquivo`, `saldo_local`, `saldo_confere` (PM-URV-03 c). O arquivo inteiro é recusado com 422 `HASH_INVALIDO`, `VERSAO_FORMATO_NAO_SUPORTADA`, `EMPRESA_NAO_CADASTRADA` ou `EMPRESA_TIPO_DIVERGENTE` (PM-URV-04) |
+| `POST /portabilidade/importar` | ADMIN | O documento exportado, no corpo, como `application/json`, não multipart (PM-URV-03 b) | `importados` (lista de `{tipo, chave}`), `rejeitados` (lista de `{tipo, chave, motivo, detalhe}`; motivo, por exemplo, `CHASSI_JA_CREDITADO`), `total_importados`, `total_rejeitados`, `saldo_arquivo`, `saldo_local`, `saldo_confere` (PM-URV-03 c). O arquivo inteiro é recusado com 422 `HASH_AUSENTE` (o `hash_conteudo` é obrigatório), `HASH_INVALIDO`, `VERSAO_FORMATO_NAO_SUPORTADA`, `EMPRESA_NAO_CADASTRADA`, `EMPRESA_TIPO_DIVERGENTE` (PM-URV-04) ou `CREDENCIAMENTO_INATIVO` (geradora sem credenciamento ativo e dentro da validade nesta plataforma, art. 8º I). Certificado e crédito importados saem com `importado: true` (A5 da revisão) |
 
 `gerar_credito` (chamado pela emissão do certificado, sem rota própria) levanta 409 `CERTIFICADO_JA_CREDITADO` se o certificado já gerou crédito (PM-URV-04).
 
@@ -108,13 +108,13 @@ Suposições do frontend resolvidas a favor do backend: o Anexo traz `nome_origi
 | `DmrSaida` | `id`, `veiculo_id`, `numero`, `mtr_numero`, `destinatario_nome`, `destinatario_cnpj`, `tipo_material`, `peso_kg`, `emitida_em` |
 | `LaudoSaida` | `id`, `veiculo_id`, `responsavel_nome`, `responsavel_registro`, `assinado_em`, `hash_conteudo`, `assinatura` |
 | `AssinaturaSaida` | `algoritmo`, `valor` |
-| `CertificadoSaida` | `id`, `numero`, `veiculo_id`, `chassi`, `empresa_id`, `tipo_veiculo`, `fator`, `percentual_aproveitado`, `meta_ano`, `atende_meta`, `emitido_em`, `hash_conteudo`, `credito` |
-| `CertificadoDetalhe` | `id`, `numero`, `veiculo_id`, `chassi`, `empresa_id`, `tipo_veiculo`, `fator`, `percentual_aproveitado`, `meta_ano`, `atende_meta`, `emitido_em`, `hash_conteudo`, `credito`, `laudo`, `veiculo` |
-| `CreditoResumo` | `id`, `quantidade`, `status`, `geradora_id`, `titular_id` |
+| `CertificadoSaida` | `id`, `numero`, `veiculo_id`, `chassi`, `empresa_id`, `tipo_veiculo`, `fator`, `percentual_aproveitado`, `meta_ano`, `atende_meta`, `emitido_em`, `hash_conteudo`, `importado`, `credito` |
+| `CertificadoDetalhe` | `id`, `numero`, `veiculo_id`, `chassi`, `empresa_id`, `tipo_veiculo`, `fator`, `percentual_aproveitado`, `meta_ano`, `atende_meta`, `emitido_em`, `hash_conteudo`, `importado`, `credito`, `laudo`, `veiculo` |
+| `CreditoResumo` | `id`, `quantidade`, `status`, `geradora_id`, `titular_id`, `importado` |
 | `MmvSaida` | `id`, `fabricante_id`, `codigo`, `ncm`, `nivel`, `percentual_reciclabilidade`, `ja_comercializado`, `efeitos_a_partir_de`, `status`, `criado_em`, `rm` |
 | `SaldoSaida` | `empresa_id`, `saldo`, `regularizar_ate`? |
 | `LancamentoSaida` | `id`, `empresa_id`, `tipo`, `quantidade`, `credito_id`, `consumo_id`, `contraparte_id`, `contraparte`, `criado_em` |
-| `CreditoSaida` | `id`, `certificado_id`, `certificado`, `chassi`, `geradora_id`, `geradora`, `titular_id`, `titular`, `quantidade`, `status`, `criado_em` |
+| `CreditoSaida` | `id`, `certificado_id`, `certificado`, `chassi`, `geradora_id`, `geradora`, `titular_id`, `titular`, `quantidade`, `status`, `importado`, `criado_em` |
 | `CertificadoResumo` | `id`, `numero`, `tipo_veiculo`, `fator`, `emitido_em` |
 | `SimulacaoSaida` | `urv_debito`, `saldo_atual`, `saldo_apos`, `saldo_suficiente`, `permitido`, `regularizar_ate`?, `prazo_saldo_negativo`, `memoria_calculo` |
 | `MemoriaCalculo` | `formula`, `qv`, `qv_consumo`, `debito_ja_registrado`, `nivel`, `rm`, `pm`, `pb`, `razao_preco`, `multiplicador` |

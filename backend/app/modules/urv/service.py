@@ -651,6 +651,7 @@ def montar_creditos(session: Session, creditos: Sequence[UrvCredito]) -> list[Cr
                 titular=empresas[c.titular_id],
                 quantidade=c.quantidade,
                 status=c.status,
+                importado=c.importado,
                 criado_em=c.criado_em,
             )
         )

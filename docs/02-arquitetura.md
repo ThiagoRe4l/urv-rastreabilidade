@@ -37,8 +37,8 @@ Todas as tabelas têm `id` (UUID) e `criado_em`. Tipos monetários e de URV: `NU
 | `pesagem` | `veiculo_id`, `fracao` (FERROSO, NAO_FERROSO, NAO_METALICO, FLUIDOS, BATERIAS, PNEUS), `destino` (REAPROVEITAMENTO, RECICLAGEM, RECUPERACAO_ENERGETICA, REJEITO), `peso_kg` | |
 | `dmr` | `veiculo_id`, `numero`, `mtr_numero`, `destinatario_nome`, `destinatario_cnpj`, `tipo_material`, `peso_kg`, `emitida_em` | |
 | `laudo` | `veiculo_id` único, `responsavel_nome`, `responsavel_registro`, `assinado_em`, `hash_conteudo` | |
-| `certificado` | `veiculo_id` único, `numero` único, `empresa_id`, `tipo_veiculo`, `fator`, `percentual_aproveitado`, `meta_ano`, `atende_meta`, `emitido_em`, `hash_conteudo` | |
-| `urv_credito` | `certificado_id` único, `geradora_id`, `titular_id`, `quantidade`, `status` (DISPONIVEL, TRANSFERIDO) | Indivisível |
+| `certificado` | `veiculo_id` único, `numero` único, `empresa_id`, `tipo_veiculo`, `fator`, `percentual_aproveitado`, `meta_ano`, `atende_meta`, `emitido_em`, `hash_conteudo`, `importado` | Só inserção (0003). `importado` marca o que veio pela portabilidade |
+| `urv_credito` | `certificado_id` único, `geradora_id`, `titular_id`, `quantidade`, `status` (DISPONIVEL, TRANSFERIDO), `importado` | Indivisível. Só `status` e `titular_id` mudam (0003) |
 | `urv_lancamento` | `empresa_id`, `tipo` (CREDITO, TRANSFERENCIA_SAIDA, TRANSFERENCIA_ENTRADA, DEBITO), `quantidade` (com sinal), `credito_id`, `consumo_id`, `contraparte_id` | Só inserção. `(credito_id, tipo)` único: um crédito tem no máximo um lançamento de cada tipo (DEBITO tem `credito_id` nulo) |
 | `consumo` | `fabricante_id`, `mmv_id`, `periodo` (AAAA-MM), `qv`, `rm`, `pm`, `pb`, `urv_debito`, `saldo_apos`, `regularizar_ate`, `prazo_reporte`, `registrado_em` | Só inserção |
 | `consumo_chassi` | `consumo_id`, `chassi` único | Chassi de veículo novo. Só inserção |

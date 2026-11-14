@@ -13,8 +13,10 @@ from app.models import (
     Certificado,
     Consumo,
     ConsumoChassi,
+    CredenciamentoStatus,
     DestinoPesagem,
     Dmr,
+    Empresa,
     Etapa,
     EtapaTipo,
     EventoAuditoria,
@@ -344,10 +346,24 @@ def test_arquivo_recusado_inteiro(client, auth, relogio, db_session, dossie) -> 
     assert db_session.scalar(select(EventoAuditoria).where(EventoAuditoria.tipo.like("%IMPORTAD%"))) is None
 
 
-def test_arquivo_sem_hash_e_aceito(client, auth, relogio, dossie) -> None:
+def test_arquivo_sem_hash_e_rejeitado(client, auth, relogio, dossie) -> None:
+    """A5 da revisão: sem `hash_conteudo` nada se confere; o arquivo inteiro é recusado."""
     doc = _exportar(client, auth)
-    doc.pop("hash_conteudo")  # outras plataformas podem não enviar
-    assert _importar(client, auth, doc).status_code == 200
+    doc.pop("hash_conteudo")
+    r = _importar(client, auth, doc)
+    assert (r.status_code, r.json()["codigo"]) == (422, "HASH_AUSENTE")
+
+
+def test_geradora_sem_credenciamento_vigente_nao_importa(
+    client, auth, relogio, dossie, db_session, dados_demo
+) -> None:
+    """A5 da revisão, art. 8º I: URV só de desmontadora ou recicladora credenciada."""
+    doc = _com_hash(_outra_plataforma(_exportar(client, auth)))
+    empresa = db_session.get(Empresa, dados_demo.desmonte_id)
+    empresa.credenciamento_status = CredenciamentoStatus.SUSPENSO
+    db_session.flush()
+    r = _importar(client, auth, doc)
+    assert (r.status_code, r.json()["codigo"]) == (422, "CREDENCIAMENTO_INATIVO")
 
 
 @pytest.mark.parametrize(

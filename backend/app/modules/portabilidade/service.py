@@ -17,7 +17,7 @@ Services não fazem commit; a rota faz.
 import hashlib
 import uuid
 from collections.abc import Callable
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import func, or_, select, text
@@ -51,6 +51,7 @@ from app.models import (
     Vinculo,
 )
 from app.modules.auditoria.service import CHAVE_BLOQUEIO_CADEIA, json_canonico, registrar_evento
+from app.modules.empresas.service import credenciamento_vigente
 from app.modules.portabilidade.schemas import (
     PLATAFORMA,
     VERSAO_FORMATO,
@@ -550,6 +551,7 @@ class _Importacao:
             atende_meta=cert.atende_meta,
             emitido_em=cert.emitido_em,
             hash_conteudo=cert.hash_conteudo,
+            importado=True,  # A5: não foi emitido aqui
         )
         s.add(certificado)
         s.flush()
@@ -559,6 +561,7 @@ class _Importacao:
             titular_id=titular.id,
             quantidade=cred.quantidade,
             status=cred.status,
+            importado=True,  # A5: não foi gerado aqui
         )
         s.add(credito)
         s.flush()
@@ -814,11 +817,13 @@ def importar(
     usuario: Usuario,
     arquivo: ArquivoPortabilidade,
     *,
-    documento: dict[str, Any] | None = None,
+    documento: dict[str, Any],
+    hoje: date,
 ) -> ResultadoImportacao:
     """Importa o histórico de uma empresa vindo de outra plataforma. RF-25, RNF-04, art. 22.
 
-    `documento` é o JSON como recebido, usado para conferir `hash_conteudo`.
+    `documento` é o JSON como recebido, usado para conferir `hash_conteudo`, que é obrigatório.
+    Geradora só importa com credenciamento ativo e dentro da validade em `hoje` (art. 8º I).
     """
     if arquivo.versao_formato != VERSAO_FORMATO:
         raise ErroNegocio(
@@ -826,7 +831,10 @@ def importar(
             "VERSAO_FORMATO_NAO_SUPORTADA",
             f"Formato {arquivo.versao_formato!r} não suportado; esta plataforma lê {VERSAO_FORMATO!r}.",
         )
-    if documento is not None and arquivo.hash_conteudo and hash_documento(documento) != arquivo.hash_conteudo:
+    # A5 da revisão: sem hash nada se confere. O hash detecta corrupção, não prova a origem (L-15).
+    if not arquivo.hash_conteudo:
+        raise ErroNegocio(422, "HASH_AUSENTE", "O arquivo precisa trazer hash_conteudo (art. 22 III).")
+    if hash_documento(documento) != arquivo.hash_conteudo:
         raise ErroNegocio(422, "HASH_INVALIDO", "O conteúdo do arquivo não confere com hash_conteudo.")
 
     # Credenciamento e registro de compromissos são atos do MDIC lançados pelo ADMIN: não vêm do arquivo.
@@ -840,6 +848,14 @@ def importar(
     if empresa.tipo != arquivo.empresa.tipo:
         raise ErroNegocio(
             422, "EMPRESA_TIPO_DIVERGENTE", "O tipo da empresa no arquivo difere do cadastrado."
+        )
+    # A5 da revisão, art. 8º I: URV é gerada exclusivamente por desmontadora ou recicladora
+    # credenciada. Importar crédito de empresa sem credenciamento vigente seria criá-lo sem ele.
+    if empresa.tipo in TIPOS_GERADORA and not credenciamento_vigente(empresa, hoje):
+        raise ErroNegocio(
+            422,
+            "CREDENCIAMENTO_INATIVO",
+            "A empresa não tem credenciamento ativo e dentro da validade nesta plataforma (art. 8º I).",
         )
 
     # Mesma ordem de bloqueios do livro de URV: empresa, depois a cadeia de auditoria. A cadeia é

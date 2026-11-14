@@ -60,6 +60,7 @@ class CreditoSaida(BaseModel):
     titular: EmpresaResumo
     quantidade: Decimal
     status: UrvCreditoStatus
+    importado: bool = Field(description="Gerado em outra plataforma e trazido pela portabilidade (art. 22)")
     criado_em: datetime
 
 

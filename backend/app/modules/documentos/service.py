@@ -386,6 +386,7 @@ def _campos(certificado: Certificado, credito: UrvCredito | None) -> dict[str, A
         "atende_meta": certificado.atende_meta,
         "emitido_em": certificado.emitido_em,
         "hash_conteudo": certificado.hash_conteudo,
+        "importado": certificado.importado,
         "credito": CreditoResumo.model_validate(credito) if credito is not None else None,
     }
 

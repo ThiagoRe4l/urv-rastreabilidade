@@ -7,6 +7,8 @@
   `rejeitar_alteracao()` da 0001). Em `urv_credito`, só `status` e `titular_id` mudam: o gatilho
   compara a linha inteira, menos essas duas colunas, e rejeita DELETE e TRUNCATE (RF-22,
   RNF-01, art. 20 V; art. 24 I).
+- A5: `certificado.importado` e `urv_credito.importado` marcam o que veio de outra plataforma
+  pela portabilidade (art. 22).
 
 Revision ID: 0003
 Revises: 0002
@@ -14,6 +16,8 @@ Create Date: 2026-11-14 15:00:00
 """
 
 from collections.abc import Sequence
+
+import sqlalchemy as sa
 
 from alembic import op
 
@@ -50,6 +54,10 @@ def _check_chave(chaves: tuple[str, ...]) -> None:
 def upgrade() -> None:
     _check_chave(CHAVES_DEPOIS)  # A1, RF-18, art. 3º §3º
 
+    # A5, RF-25, art. 22: o que veio de outra plataforma fica marcado.
+    for tabela in ("certificado", "urv_credito"):
+        op.add_column(tabela, sa.Column("importado", sa.Boolean(), server_default="false", nullable=False))
+
     # A4, RF-22, art. 20 V: o que o certificado e o laudo atestam não muda depois de gravado.
     for tabela in TABELAS_IMUTAVEIS:
         op.execute(
@@ -80,5 +88,7 @@ def downgrade() -> None:
     for tabela in TABELAS_IMUTAVEIS:
         op.execute(f"DROP TRIGGER IF EXISTS trg_{tabela}_sem_truncate ON {tabela}")
         op.execute(f"DROP TRIGGER IF EXISTS trg_{tabela}_imutavel ON {tabela}")
+    for tabela in ("certificado", "urv_credito"):
+        op.drop_column(tabela, "importado")
     op.execute("DELETE FROM config_parametro WHERE chave IN ('RM_NIVEL_1', 'RM_NIVEL_2')")
     _check_chave(CHAVES_ANTES)

@@ -2,7 +2,18 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, func
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, ComId, coluna_enum
@@ -24,6 +35,8 @@ class UrvCredito(ComId, Base):
         default=UrvCreditoStatus.DISPONIVEL,
         server_default=UrvCreditoStatus.DISPONIVEL.value,
     )
+    # Gerado em outra plataforma e trazido pela portabilidade (art. 22; A5 da revisão).
+    importado: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     certificado: Mapped[Certificado] = relationship()
 

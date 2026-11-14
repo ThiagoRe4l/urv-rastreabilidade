@@ -42,5 +42,7 @@ class Certificado(ComId, Base):
     atende_meta: Mapped[bool | None] = mapped_column(Boolean)
     emitido_em: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     hash_conteudo: Mapped[str] = mapped_column(String(64))
+    # Veio de outra plataforma pela portabilidade (art. 22): não foi emitido aqui (A5 da revisão).
+    importado: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     veiculo: Mapped[Veiculo] = relationship()

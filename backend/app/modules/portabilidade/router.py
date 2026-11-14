@@ -62,8 +62,11 @@ def importar(
     corpo: bytes = Depends(corpo_bruto),
     session: Session = Depends(obter_sessao),
     usuario: Usuario = Depends(_admin),
+    momento: datetime = Depends(agora),
 ) -> ResultadoImportacao:
     # RF-25, RNF-04, arts. 22, 28 e 29: rejeita o que já existe aqui e diz o motivo por item.
-    resultado = service.importar(session, usuario, arquivo, documento=json.loads(corpo))
+    resultado = service.importar(
+        session, usuario, arquivo, documento=json.loads(corpo), hoje=data_operacao(momento)
+    )
     session.commit()
     return resultado
