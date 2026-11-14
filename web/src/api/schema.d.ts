@@ -3167,6 +3167,8 @@ export interface operations {
                 entidade?: string | null;
                 entidade_id?: string | null;
                 tipo?: string | null;
+                /** @description Eventos do veículo e dos registros ligados a ele: etapas, anexos, peças, pesagens, DMR, laudo, certificado e crédito gerado */
+                veiculo_id?: string | null;
                 /** @description Página, a partir de 1 */
                 pagina?: number;
                 /** @description Itens por página */

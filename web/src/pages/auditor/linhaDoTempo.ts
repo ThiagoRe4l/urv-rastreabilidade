@@ -54,7 +54,7 @@ export async function montarLinhaDoTempo(termo: string): Promise<LinhaDoTempo> {
     api.listarPecas({ veiculo_id: achado.id }), // PM-WEB-04
     api.listarPesagens(achado.id),
     api.listarDmrs(achado.id),
-    api.listarEventos({ entidade_id: achado.id, tamanho: 100 }),
+    api.listarEventos({ veiculo_id: achado.id, tamanho: 100 }), // o dossiê inteiro na trilha (L-13)
   ]);
   // O detalhe do veículo traz `laudo_id` e `certificado_id` (PM-03 a); o laudo tem rota própria (PM-WEB-03).
   const [laudo, certificado]: [Laudo | null, CertificadoDetalhe | null] = await Promise.all([

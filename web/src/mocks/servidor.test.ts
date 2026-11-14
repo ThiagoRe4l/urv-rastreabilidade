@@ -234,8 +234,11 @@ describe("roteiro de demonstração no mock", () => {
     entrar(AUDITOR);
     const achados = chamar<T.Pagina<T.Veiculo>>(AUDITOR, "GET", `/veiculos?chassi=${CHASSI}`).corpo.itens;
     expect(achados).toHaveLength(1);
-    const eventos = chamar<T.Pagina<T.Evento>>(AUDITOR, "GET", `/auditoria/eventos?entidade_id=${id}&tamanho=100`).corpo;
+    // ?veiculo_id= traz também os registros ligados ao veículo, como o crédito gerado (L-13).
+    const eventos = chamar<T.Pagina<T.Evento>>(AUDITOR, "GET", `/auditoria/eventos?veiculo_id=${id}&tamanho=100`).corpo;
     expect(eventos.total).toBeGreaterThan(15);
+    expect(eventos.itens.map((e) => e.tipo)).toContain("CREDITO_GERADO");
+    expect(eventos.itens.map((e) => e.tipo)).not.toContain("MMV_CADASTRADO");
     expect(chamar<T.RelatorioMdic>(AUDITOR, "GET", "/relatorios/mdic?ano=2026").corpo).toMatchObject({
       registros: 1,
       certificados_emitidos: 1,

@@ -21,6 +21,8 @@ export const listarEventos = (filtros: {
   entidade?: string;
   entidade_id?: string;
   tipo?: string;
+  /** Eventos do veículo e dos registros ligados a ele (etapas, anexos, peças, pesagens, DMR, laudo, certificado). */
+  veiculo_id?: string;
   pagina?: number;
   tamanho?: number;
 }) => api<T.Pagina<T.Evento>>(`/auditoria/eventos${qs(filtros)}`);

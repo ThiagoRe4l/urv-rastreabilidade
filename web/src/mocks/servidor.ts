@@ -616,7 +616,16 @@ const ROTAS: [string, RegExp, Manipulador][] = [
         const valor = c.consulta.get(campo);
         return (ev: T.Evento) => !valor || ev[campo] === valor;
       };
-      return paginar(c, c.e.eventos.filter(filtro("entidade")).filter(filtro("entidade_id")).filter(filtro("tipo")));
+      // ?veiculo_id=: o próprio veículo e os registros ligados a ele pelo `veiculo_id` do payload.
+      const veiculoId = c.consulta.get("veiculo_id");
+      const doVeiculo = (ev: T.Evento) =>
+        !veiculoId ||
+        (ev.entidade === "veiculo" && ev.entidade_id === veiculoId) ||
+        ev.payload.veiculo_id === veiculoId;
+      return paginar(
+        c,
+        c.e.eventos.filter(filtro("entidade")).filter(filtro("entidade_id")).filter(filtro("tipo")).filter(doVeiculo),
+      );
     },
   ],
   [
