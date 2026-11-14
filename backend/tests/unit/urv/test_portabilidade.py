@@ -346,6 +346,45 @@ def test_arquivo_recusado_inteiro(client, auth, relogio, db_session, dossie) -> 
     assert db_session.scalar(select(EventoAuditoria).where(EventoAuditoria.tipo.like("%IMPORTAD%"))) is None
 
 
+def test_consumo_com_pb_diferente_do_vigente_e_rejeitado(
+    client, auth, relogio, db_session, dados_demo
+) -> None:
+    """A6 da revisão, art. 3º §5º: o Pb do arquivo tem de ser o vigente na data do consumo."""
+    mmv = Mmv(
+        fabricante_id=dados_demo.montadora_id,
+        codigo="IMPORTADO-PB",
+        ncm="87032310",
+        nivel=1,
+        percentual_reciclabilidade=Decimal("85.00"),
+        ja_comercializado=False,
+        efeitos_a_partir_de=HOJE.date(),
+    )
+    db_session.add(mmv)
+    db_session.flush()
+    doc = _exportar(client, auth, EMAIL_FABRICANTE)
+    doc["mmvs"] = []
+    doc["consumos"] = [
+        {
+            "referencia": "PB-1",
+            "mmv_codigo": "IMPORTADO-PB",
+            "periodo": "2026-11",
+            "qv": 10,
+            "rm": 10,
+            "pm": "1500000.00",
+            "pb": "1500000.00",  # dez vezes o Pb vigente
+            "urv_debito": "1.00",
+            "saldo_apos": "-1.00",
+            "prazo_reporte": "2026-12-14",
+            "registrado_em": HOJE.isoformat(),
+            "chassis": vins(10, 700),
+        }
+    ]
+    r = _importar(client, auth, _com_hash(doc))
+    assert r.status_code == 200, r.text
+    assert _rejeicoes(r) == {"PB-1": "PB_DIVERGENTE"}
+    assert saldo_empresa(db_session, dados_demo.montadora_id) == Decimal("0.00")
+
+
 def test_arquivo_sem_hash_e_rejeitado(client, auth, relogio, dossie) -> None:
     """A5 da revisão: sem `hash_conteudo` nada se confere; o arquivo inteiro é recusado."""
     doc = _exportar(client, auth)

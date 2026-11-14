@@ -25,7 +25,7 @@ from sqlalchemy.exc import DataError, IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.cnpj import normalizar_cnpj
-from app.core.configuracao import fator_vigente, rm_vigente
+from app.core.configuracao import fator_vigente, preco_base_vigente, rm_vigente
 from app.core.decimais import quantizar
 from app.core.erros import ErroNegocio, NaoEncontrado
 from app.core.relogio import data_operacao
@@ -732,10 +732,15 @@ class _Importacao:
             raise _Rejeicao("QV_DIVERGENTE", "qv difere da quantidade de chassis distintos informados.")
         if any(not ch or len(ch) > 30 for ch in chassis):
             raise _Rejeicao("CHASSI_INVALIDO", "Há chassi vazio ou com mais de 30 caracteres.")
+        dia = data_operacao(c.registrado_em)
         try:
-            rm = rm_vigente(s, mmv.nivel, data_operacao(c.registrado_em))  # art. 3º §3º; L-01
+            rm = rm_vigente(s, mmv.nivel, dia)  # art. 3º §3º; L-01
+            pb = preco_base_vigente(s, dia)
         except ErroNegocio as exc:
             raise _Rejeicao(exc.codigo, exc.detail) from exc
+        # RF-18, art. 3º §5º: Pb é o parâmetro vigente na data, não um valor do arquivo (A6 da revisão).
+        if c.pb != pb:
+            raise _Rejeicao("PB_DIVERGENTE", f"Pb {c.pb} difere do preço base vigente em {dia} ({pb}).")
         # RF-18, art. 3º §§3º e 4º: o débito é refeito no acumulado do MMV no período, como no
         # registro local (achado A3 da revisão); Pm diferente no mesmo período é rejeitado.
         try:
