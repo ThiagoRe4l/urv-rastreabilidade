@@ -159,6 +159,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auditoria/reconciliar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Confere créditos, saldos e registros contra certificados, lançamentos e a trilha */
+        get: operations["reconciliar_api_v1_auditoria_reconciliar_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/configuracao/fatores": {
         parameters: {
             query?: never;
@@ -735,7 +752,10 @@ export interface components {
              * @description Saldo de URV na origem
              */
             saldo: number | string;
-            /** Hash Conteudo */
+            /**
+             * Hash Conteudo
+             * @description Obrigatório na importação (422 HASH_AUSENTE)
+             */
             hash_conteudo?: string | null;
         };
         /**
@@ -800,7 +820,10 @@ export interface components {
              * @description Saldo de URV na origem
              */
             saldo: string;
-            /** Hash Conteudo */
+            /**
+             * Hash Conteudo
+             * @description Obrigatório na importação (422 HASH_AUSENTE)
+             */
             hash_conteudo?: string | null;
         };
         /** AssinaturaSaida */
@@ -870,6 +893,11 @@ export interface components {
             emitido_em: string;
             /** Hash Conteudo */
             hash_conteudo: string;
+            /**
+             * Importado
+             * @description Emitido em outra plataforma e trazido pela portabilidade (art. 22)
+             */
+            importado: boolean;
             credito: components["schemas"]["CreditoResumo"] | null;
             laudo: components["schemas"]["LaudoSaida"] | null;
             veiculo: components["schemas"]["VeiculoSaida"];
@@ -994,6 +1022,11 @@ export interface components {
             emitido_em: string;
             /** Hash Conteudo */
             hash_conteudo: string;
+            /**
+             * Importado
+             * @description Emitido em outra plataforma e trazido pela portabilidade (art. 22)
+             */
+            importado: boolean;
             credito: components["schemas"]["CreditoResumo"] | null;
         };
         /** ConsumoCriar */
@@ -1035,7 +1068,10 @@ export interface components {
             pm: number | string;
             /** Pb */
             pb: number | string;
-            /** Urv Debito */
+            /**
+             * Urv Debito
+             * @description Deste consumo, no acumulado do MMV no período
+             */
             urv_debito: number | string;
             /** Saldo Apos */
             saldo_apos: number | string;
@@ -1073,7 +1109,10 @@ export interface components {
             pm: string;
             /** Pb */
             pb: string;
-            /** Urv Debito */
+            /**
+             * Urv Debito
+             * @description Deste consumo, no acumulado do MMV no período
+             */
             urv_debito: string;
             /** Saldo Apos */
             saldo_apos: string;
@@ -1159,9 +1198,14 @@ export interface components {
             preco_medio: number | string;
             /**
              * Quantidade
-             * @description Qv: veículos comercializados
+             * @description Veículos deste consumo
              */
             quantidade: number;
+            /**
+             * Periodo
+             * @description Mês da comercialização. Com ele, o débito soma o já registrado no período (art. 3º §3º)
+             */
+            periodo?: string | null;
         };
         /** CredenciamentoAtualizar */
         CredenciamentoAtualizar: {
@@ -1254,6 +1298,11 @@ export interface components {
              * Format: uuid
              */
             titular_id: string;
+            /**
+             * Importado
+             * @description Gerado em outra plataforma e trazido pela portabilidade
+             */
+            importado: boolean;
         };
         /** CreditoSaida */
         CreditoSaida: {
@@ -1286,6 +1335,11 @@ export interface components {
             quantidade: string;
             status: components["schemas"]["UrvCreditoStatus"];
             /**
+             * Importado
+             * @description Gerado em outra plataforma e trazido pela portabilidade (art. 22)
+             */
+            importado: boolean;
+            /**
              * Criado Em
              * Format: date-time
              */
@@ -1296,6 +1350,23 @@ export interface components {
          * @enum {string}
          */
         DestinoPesagem: "REAPROVEITAMENTO" | "RECICLAGEM" | "RECUPERACAO_ENERGETICA" | "REJEITO";
+        /** DivergenciaSaida */
+        DivergenciaSaida: {
+            /**
+             * Verificacao
+             * @description CREDITO_FATOR, FATOR_VIGENTE, LANCAMENTO, SALDO ou TRILHA
+             */
+            verificacao: string;
+            /** Entidade */
+            entidade: string;
+            /**
+             * Entidade Id
+             * Format: uuid
+             */
+            entidade_id: string;
+            /** Detalhe */
+            detalhe: string;
+        };
         /** DmrCriar */
         DmrCriar: {
             /** Numero */
@@ -1831,8 +1902,21 @@ export interface components {
         MemoriaCalculo: {
             /** Formula */
             formula: string;
-            /** Qv */
+            /**
+             * Qv
+             * @description Qv acumulado do MMV no período, contando este consumo (art. 3º §3º)
+             */
             qv: number;
+            /**
+             * Qv Consumo
+             * @description Veículos deste consumo
+             */
+            qv_consumo: number;
+            /**
+             * Debito Ja Registrado
+             * @description Débito dos consumos anteriores do MMV no período
+             */
+            debito_ja_registrado: string;
             /** Nivel */
             nivel: number;
             /** Rm */
@@ -1968,9 +2052,9 @@ export interface components {
             criado_em: string;
             /**
              * Rm
-             * @description RM usado no débito: 10 para o nível 1, 5 para o nível 2 (art. 3º §3º).
+             * @description RM do nível vigente hoje em config_parametro (art. 3º §3º; lacuna L-01)
              */
-            readonly rm: number;
+            rm: number;
         };
         /**
          * MmvStatus
@@ -2098,6 +2182,12 @@ export interface components {
             /** @description Obrigatória para peça reutilizável */
             condicao?: components["schemas"]["PecaCondicao"] | null;
             destino: components["schemas"]["PecaDestino"];
+            /**
+             * Item Seguranca
+             * @description Item de segurança (airbag, cinto, pré-tensionador): só NAO_REUTILIZAVEL (Anexo III 7)
+             * @default false
+             */
+            item_seguranca: boolean;
         };
         /**
          * PecaDestino
@@ -2120,6 +2210,11 @@ export interface components {
              * @default false
              */
             descaracterizada: boolean;
+            /**
+             * Item Seguranca
+             * @default false
+             */
+            item_seguranca: boolean;
             /**
              * Registrada Em
              * Format: date-time
@@ -2151,6 +2246,8 @@ export interface components {
             destino: components["schemas"]["PecaDestino"] | null;
             /** Descaracterizada */
             descaracterizada: boolean;
+            /** Item Seguranca */
+            item_seguranca: boolean;
             /**
              * Criado Em
              * Format: date-time
@@ -2221,11 +2318,24 @@ export interface components {
             itens: components["schemas"]["PesagemSaida"][];
             /** Total */
             total: number;
-            /** Peso Total Kg */
+            /**
+             * Peso Total Kg
+             * @description Soma das pesagens
+             */
             peso_total_kg: string;
             /**
+             * Peso Entrada Kg
+             * @description Peso do veículo na recepção: o denominador da meta
+             */
+            peso_entrada_kg: string | null;
+            /**
+             * Peso Nao Contabilizado Kg
+             * @description Peso de entrada sem pesagem; conta como não aproveitado (art. 18 §5º)
+             */
+            peso_nao_contabilizado_kg: string | null;
+            /**
              * Percentual Aproveitado
-             * @description Em pontos, de 0 a 100; nulo sem pesagens
+             * @description Peso com destino ≠ REJEITO sobre o peso de entrada, em pontos; nulo sem pesagens
              */
             percentual_aproveitado: string | null;
             /**
@@ -2261,6 +2371,28 @@ export interface components {
             /** Codigo */
             codigo: string;
             destino: components["schemas"]["PecaDestino"] | null;
+        };
+        /**
+         * ReconciliacaoSaida
+         * @description Registros de negócio conferidos contra o que os sustenta. RF-22, art. 20 V; art. 24 I.
+         */
+        ReconciliacaoSaida: {
+            /**
+             * Conciliado
+             * @description Verdadeiro sem nenhuma divergência
+             */
+            conciliado: boolean;
+            /**
+             * Verificados
+             * @description Quantos registros de cada tipo foram conferidos
+             */
+            verificados: {
+                [key: string]: number;
+            };
+            /** Divergencias */
+            divergencias: components["schemas"]["DivergenciaSaida"][];
+            /** Total Divergencias */
+            total_divergencias: number;
         };
         /**
          * RelatorioMdicSaida
@@ -2432,7 +2564,7 @@ export interface components {
         VeiculoCriar: {
             /**
              * Chassi
-             * @description Só letras e dígitos; gravado em maiúsculas
+             * @description VIN de 17 caracteres, sem I, O e Q; gravado em maiúsculas
              */
             chassi: string;
             /** Placa */
@@ -3216,6 +3348,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VerificacaoSaida"];
+                };
+            };
+        };
+    };
+    reconciliar_api_v1_auditoria_reconciliar_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliacaoSaida"];
                 };
             };
         };

@@ -25,6 +25,7 @@ function LinhaPeca({ peca, podeEscrever, aoEtiquetar }: { peca: Peca; podeEscrev
       </td>
       <td>
         {ROTULO_CLASSIFICACAO[peca.classificacao]}
+        {peca.item_seguranca && <div className="sutil">Item de segurança</div>}
         {peca.condicao && <div className="sutil">{ROTULO_CONDICAO[peca.condicao]}</div>}
       </td>
       <td>
@@ -80,12 +81,22 @@ export function Pecas({ veiculo, podeEscrever }: { veiculo: Veiculo; podeEscreve
   const [classificacao, setClassificacao] = useState<PecaClassificacao>("REUTILIZAVEL");
   const [condicao, setCondicao] = useState<PecaCondicao>("USADA");
   const [destino, setDestino] = useState<PecaDestino>("ESTOQUE");
+  const [itemSeguranca, setItemSeguranca] = useState(false);
 
   const criar = useMutation({
-    mutationFn: () => criarPeca(veiculo.id, { nome: nome.trim(), descricao: descricao.trim(), classificacao, condicao, destino }),
+    mutationFn: () =>
+      criarPeca(veiculo.id, {
+        nome: nome.trim(),
+        descricao: descricao.trim(),
+        classificacao,
+        condicao,
+        destino,
+        item_seguranca: itemSeguranca,
+      }),
     onSuccess: (peca) => {
       setNome("");
       setDescricao("");
+      setItemSeguranca(false);
       recarregar();
       if (peca.etiqueta) setEtiqueta(peca.etiqueta);
     },
@@ -130,11 +141,27 @@ export function Pecas({ veiculo, podeEscrever }: { veiculo: Veiculo; podeEscreve
             Descrição
             <input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Opcional" />
           </label>
+          <label className="linha">
+            <input
+              type="checkbox"
+              checked={itemSeguranca}
+              onChange={(e) => {
+                setItemSeguranca(e.target.checked);
+                // Anexo III 7: item de segurança é obrigatoriamente não reutilizável.
+                if (e.target.checked) {
+                  setClassificacao("NAO_REUTILIZAVEL");
+                  setDestino("RECICLAGEM");
+                }
+              }}
+            />
+            Item de segurança (airbag, cinto, pré-tensionador) <Artigo>Anexo III, item 7</Artigo>
+          </label>
           <label>
             Classificação
             <Selecao
               valor={classificacao}
               aoMudar={(v) => {
+                if (itemSeguranca && v === "REUTILIZAVEL") return;
                 setClassificacao(v);
                 setDestino(v === "REUTILIZAVEL" ? "ESTOQUE" : "RECICLAGEM");
               }}

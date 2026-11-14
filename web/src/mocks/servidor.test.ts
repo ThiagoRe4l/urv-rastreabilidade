@@ -149,8 +149,8 @@ describe("roteiro de demonstração no mock", () => {
     pesar("FERROSO", "RECICLAGEM", "800");
     pesar("NAO_METALICO", "REJEITO", "100");
     pesar("FLUIDOS", "RECUPERACAO_ENERGETICA", "100");
-    // RF-12: 900 de 1000 kg aproveitados.
-    expect(chamar<T.Pesagens>(OPERADOR, "GET", `/veiculos/${id}/pesagens`).corpo.percentual_aproveitado).toBe("90.00");
+    // RF-12, art. 18 §5º: 900 kg aproveitados sobre os 1.180,5 kg de entrada (A2 da revisão).
+    expect(chamar<T.Pesagens>(OPERADOR, "GET", `/veiculos/${id}/pesagens`).corpo.percentual_aproveitado).toBe("76.24");
     etapa("DESTRUICAO");
     const dmr = chamar<T.Dmr>(OPERADOR, "POST", `/veiculos/${id}/dmrs`, {
       numero: "DMR-1",
@@ -194,7 +194,13 @@ describe("roteiro de demonstração no mock", () => {
     expect(destinos.map((e) => e.id)).toEqual([ID_FABRICANTE]);
     const transferir = () =>
       chamar<T.Credito>(OPERADOR, "POST", `/urv/creditos/${credito.id}/transferir`, { fabricante_id: ID_FABRICANTE });
+    // A8: antes da transferência o fabricante não lê o dossiê; depois, como titular, lê.
+    expect(chamar(FISCAL, "GET", `/certificados/${credito.certificado_id}`).status).toBe(404);
     expect(transferir().corpo.status).toBe("TRANSFERIDO");
+    expect(chamar(FISCAL, "GET", `/certificados/${credito.certificado_id}`).status).toBe(200);
+    expect(chamar(FISCAL, "GET", `/veiculos/${id}/laudo`).status).toBe(200);
+    expect(chamar(FISCAL, "GET", `/veiculos/${id}/dmrs`).status).toBe(200);
+    expect(chamar(FISCAL, "GET", `/veiculos/${id}/pesagens`).status).toBe(403);
     const deNovo = transferir();
     expect(deNovo.status).toBe(409);
     expect(deNovo.corpo.codigo).toBe("CREDITO_JA_TRANSFERIDO");

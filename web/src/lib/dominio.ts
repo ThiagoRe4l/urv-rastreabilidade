@@ -154,5 +154,11 @@ export const ARTIGO_DO_ERRO: Record<string, string> = {
   MMV_SEM_EFEITOS: "art. 5º §§2º e 3º",
   PENDENCIAS_CERTIFICADO: "art. 18 VIII; art. 8º I",
   PENDENCIAS_LAUDO: "art. 18 VII",
+  PM_DIVERGENTE_NO_PERIODO: "art. 3º §4º",
+  PESO_ACIMA_DA_ENTRADA: "art. 18 §§5º e 6º",
+  RENAVAM_DUPLICADO: "art. 18 II; art. 21 III",
+  CERTIDAO_BAIXA_DUPLICADA: "art. 18 II; art. 21 III",
+  EVIDENCIA_REUTILIZADA: "art. 6º I c; art. 21 III",
+  ITEM_SEGURANCA_NAO_REUTILIZAVEL: "Anexo III, item 7",
   AUDITOR_SOMENTE_LEITURA: "art. 24 V",
 };

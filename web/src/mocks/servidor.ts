@@ -67,7 +67,7 @@ interface Estado {
   eventos: T.Evento[];
 }
 
-const VERSAO = 2;
+const VERSAO = 3; // 3: importado, item_seguranca e o dossiê do titular (correções da revisão)
 // Art. 3º §2º.
 const FATORES: Record<T.TipoVeiculo, string> = {
   LICENCIADO_RODAGEM: "1.00",
@@ -336,11 +336,27 @@ function veiculoDe(c: Ctx, id: string, escrita: boolean): VeiculoReg {
   return v;
 }
 
-/** RF-12: soma dos pesos com destino diferente de REJEITO sobre o total, em pontos de 0 a 100. */
+/** O fabricante titular de um crédito do veículo lê o dossiê (art. 9º; A8 da revisão). */
+function titularDoVeiculo(c: Ctx, empresaId: string | null | undefined, veiculoId: string): boolean {
+  const cert = c.e.certificados.find((x) => x.veiculo_id === veiculoId);
+  return !!empresaId && !!cert && c.e.creditos.some((cr) => cr.certificado_id === cert.id && cr.titular_id === empresaId);
+}
+
+/** Leitura do dossiê: quem lê o veículo, mais o fabricante titular de um crédito dele. */
+function veiculoDoDossie(c: Ctx, id: string): VeiculoReg {
+  const u = exigir(c, "DESMONTADORA", "RECICLADORA", "AUDITOR", "ADMIN", "FABRICANTE");
+  if (u.papel !== "FABRICANTE") return veiculoDe(c, id, false);
+  const v = achar(c.e.veiculos, id, "Veículo");
+  if (!titularDoVeiculo(c, u.empresa_id, id)) throw new Falha(404, "NAO_ENCONTRADO", "Veículo não encontrado");
+  return v;
+}
+
+/** RF-12, art. 18 §5º: peso com destino diferente de REJEITO sobre o peso de entrada do veículo. */
 function percentualAproveitado(c: Ctx, veiculoId: string): string | null {
   const pesagens = c.e.pesagens.filter((p) => p.veiculo_id === veiculoId);
-  const total = pesagens.reduce((s, p) => s + paraEscala(p.peso_kg, 3), 0n);
-  if (total === 0n) return null;
+  const entrada = achar(c.e.veiculos, veiculoId, "Veículo").peso_entrada_kg;
+  const total = entrada ? paraEscala(entrada, 3) : 0n;
+  if (pesagens.length === 0 || total === 0n) return null;
   const aproveitado = pesagens
     .filter((p) => p.destino !== "REJEITO")
     .reduce((s, p) => s + paraEscala(p.peso_kg, 3), 0n);
@@ -413,7 +429,14 @@ function verCredito(c: Ctx, cr: CreditoReg): T.Credito {
 function resumoCredito(c: Ctx, certificadoId: string): T.CreditoResumo | null {
   const cr = c.e.creditos.find((x) => x.certificado_id === certificadoId);
   return cr
-    ? { id: cr.id, quantidade: cr.quantidade, status: cr.status, geradora_id: cr.geradora_id, titular_id: cr.titular_id }
+    ? {
+        id: cr.id,
+        quantidade: cr.quantidade,
+        status: cr.status,
+        geradora_id: cr.geradora_id,
+        titular_id: cr.titular_id,
+        importado: cr.importado,
+      }
     : null;
 }
 
@@ -715,7 +738,7 @@ const ROTAS: [string, RegExp, Manipulador][] = [
     "GET",
     /^\/veiculos\/([^/]+)$/,
     (c, id): T.VeiculoDetalhe => {
-      const v = veiculoDe(c, id, false);
+      const v = veiculoDoDossie(c, id);
       return {
         ...v,
         etapas: c.e.etapas.filter((x) => x.veiculo_id === id),
@@ -768,7 +791,7 @@ const ROTAS: [string, RegExp, Manipulador][] = [
     /^\/anexos\/([^/]+)\/arquivo$/,
     (c, id) => {
       const anexo = achar(c.e.anexos, id, "Anexo");
-      veiculoDe(c, anexo.veiculo_id, false);
+      veiculoDoDossie(c, anexo.veiculo_id);
       return (
         c.arquivos.get(id) ??
         new Blob(
@@ -816,6 +839,11 @@ const ROTAS: [string, RegExp, Manipulador][] = [
     (c, id) => {
       const v = veiculoDe(c, id, true);
       const classificacao = umDe(c, "classificacao", ["REUTILIZAVEL", "NAO_REUTILIZAVEL"] as const);
+      const item_seguranca = c.corpo.item_seguranca === true;
+      // Anexo III 7: item de segurança é obrigatoriamente não reutilizável (R10 da revisão).
+      if (item_seguranca && classificacao !== "NAO_REUTILIZAVEL") {
+        throw new Falha(422, "ITEM_SEGURANCA_NAO_REUTILIZAVEL", "Item de segurança é obrigatoriamente não reutilizável");
+      }
       const nome = texto(c, "nome");
       const codigo = classificacao === "REUTILIZAVEL" ? `P${uuid().replace(/-/g, "").slice(0, 10).toUpperCase()}` : null;
       const peca: T.Peca = {
@@ -833,6 +861,7 @@ const ROTAS: [string, RegExp, Manipulador][] = [
           ? { nome, chassi: v.chassi, data: hojeIso(c.agora), cnpj: resumo(c, v.empresa_id).cnpj, codigo }
           : null,
         descaracterizada: false,
+        item_seguranca,
         criado_em: c.agora.toISOString(),
       };
       c.e.pecas.push(peca);
@@ -924,13 +953,14 @@ const ROTAS: [string, RegExp, Manipulador][] = [
       const pesagens = c.e.pesagens.filter((p) => p.veiculo_id === id);
       const percentual = percentualAproveitado(c, id);
       const meta = metaDoAno(c.agora.getFullYear());
+      const pesado = pesagens.reduce((s, p) => s + paraEscala(p.peso_kg, 3), 0n);
+      const entrada = achar(c.e.veiculos, id, "Veículo").peso_entrada_kg;
       return {
         itens: pesagens,
         total: pesagens.length,
-        peso_total_kg: deEscala(
-          pesagens.reduce((s, p) => s + paraEscala(p.peso_kg, 3), 0n),
-          3,
-        ),
+        peso_total_kg: deEscala(pesado, 3),
+        peso_entrada_kg: entrada,
+        peso_nao_contabilizado_kg: entrada ? deEscala(paraEscala(entrada, 3) - pesado, 3) : null,
         percentual_aproveitado: percentual,
         meta_ano: meta,
         atende_meta: meta && percentual ? paraEscala(percentual, 2) >= paraEscala(meta, 2) : null,
@@ -966,7 +996,7 @@ const ROTAS: [string, RegExp, Manipulador][] = [
     "GET",
     /^\/veiculos\/([^/]+)\/dmrs$/,
     (c, id) => {
-      veiculoDe(c, id, false);
+      veiculoDoDossie(c, id);
       return paginar(c, c.e.dmrs.filter((d) => d.veiculo_id === id));
     },
   ],
@@ -1006,7 +1036,7 @@ const ROTAS: [string, RegExp, Manipulador][] = [
     "GET",
     /^\/veiculos\/([^/]+)\/laudo$/,
     (c, id): T.Laudo => {
-      veiculoDe(c, id, false);
+      veiculoDoDossie(c, id);
       const laudo = c.e.laudos.find((l) => l.veiculo_id === id);
       if (!laudo) throw new Falha(404, "NAO_ENCONTRADO", "Laudo não encontrado");
       return laudo;
@@ -1042,6 +1072,7 @@ const ROTAS: [string, RegExp, Manipulador][] = [
         atende_meta: meta && percentual ? paraEscala(percentual, 2) >= paraEscala(meta, 2) : null,
         emitido_em,
         hash_conteudo: hashFalso(JSON.stringify([numero, v.chassi, v.tipo, emitido_em])),
+        importado: false,
       };
       c.e.certificados.push(certificado);
       // RF-16: crédito no valor do fator do veículo.
@@ -1052,6 +1083,7 @@ const ROTAS: [string, RegExp, Manipulador][] = [
         titular_id: v.empresa_id,
         quantidade: certificado.fator,
         status: "DISPONIVEL",
+        importado: false,
         criado_em: emitido_em,
       };
       c.e.creditos.push(credito);
@@ -1068,10 +1100,10 @@ const ROTAS: [string, RegExp, Manipulador][] = [
     (c) => {
       const u = exigir(c);
       const empresa = u.empresa_id ?? c.consulta.get("empresa_id");
-      return paginar(
-        c,
-        c.e.certificados.filter((x) => !empresa || x.empresa_id === empresa).map((x) => verCertificado(c, x)),
-      );
+      // A8: o fabricante vê os certificados dos créditos de que é titular.
+      const visivel = (x: CertificadoReg) =>
+        u.papel === "FABRICANTE" ? titularDoVeiculo(c, u.empresa_id, x.veiculo_id) : !empresa || x.empresa_id === empresa;
+      return paginar(c, c.e.certificados.filter(visivel).map((x) => verCertificado(c, x)));
     },
   ],
   [
@@ -1080,7 +1112,8 @@ const ROTAS: [string, RegExp, Manipulador][] = [
     (c, id): T.CertificadoDetalhe => {
       const u = exigir(c);
       const cert = achar(c.e.certificados, id, "Certificado");
-      if (u.empresa_id && cert.empresa_id !== u.empresa_id) throw new Falha(404, "NAO_ENCONTRADO", "Certificado não encontrado");
+      const dono = u.papel === "FABRICANTE" ? titularDoVeiculo(c, u.empresa_id, cert.veiculo_id) : cert.empresa_id === u.empresa_id;
+      if (u.empresa_id && !dono) throw new Falha(404, "NAO_ENCONTRADO", "Certificado não encontrado");
       return {
         ...verCertificado(c, cert),
         laudo: c.e.laudos.find((l) => l.veiculo_id === cert.veiculo_id) ?? null,
@@ -1232,9 +1265,12 @@ const ROTAS: [string, RegExp, Manipulador][] = [
         permitido,
         regularizar_ate: !suficiente && permitido ? regularizarAte(c.agora) : null,
         prazo_saldo_negativo: FIM_SALDO_NEGATIVO,
+        // O mock não acumula o débito no período (A3): calcula cada simulação isolada.
         memoria_calculo: {
-          formula: "urv_debito = (qv / rm) * max(1, pm / pb)",
+          formula: "urv_debito = (qv_periodo / rm) * max(1, pm / pb) - debito_ja_registrado_no_periodo",
           qv,
+          qv_consumo: qv,
+          debito_ja_registrado: "0.00",
           nivel: mmv.nivel,
           rm: mmv.rm,
           pm,
