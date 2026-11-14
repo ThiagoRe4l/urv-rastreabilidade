@@ -46,7 +46,7 @@ Todas as tabelas têm `id` (UUID) e `criado_em`. Tipos monetários e de URV: `NU
 | `config_parametro` | `chave` (PRECO_BASE, FIM_SALDO_NEGATIVO, RM_NIVEL_1, RM_NIVEL_2), `valor`, `vigente_desde` | Semeada com 150000.00, 2027-12-31, 10 e 5. O RM por nível é parâmetro porque a correspondência com os itens 17 e 18 do Anexo III do Decreto 12.435/2025 não foi conferida (L-01) |
 | `evento_auditoria` | `sequencia` (bigserial), `ocorrido_em`, `usuario_id`, `empresa_id`, `tipo`, `entidade`, `entidade_id`, `payload` (JSONB), `hash_anterior`, `hash` | Só inserção |
 
-`urv_lancamento`, `evento_auditoria`, `consumo` e `consumo_chassi` têm gatilho no banco que rejeita `UPDATE`, `DELETE` e `TRUNCATE`. Os dois primeiros vêm da migração `0001`; `consumo`, `consumo_chassi` e o índice único `uq_urv_lancamento_credito_id_tipo` vêm da `0002` (PM-URV-05). É defesa em profundidade: a transferência única e o consumo único continuam garantidos primeiro pelo service, com `SELECT ... FOR UPDATE`, e o banco barra o que escapar.
+`urv_lancamento`, `evento_auditoria`, `consumo`, `consumo_chassi`, `certificado` e `laudo` têm gatilho no banco que rejeita `UPDATE`, `DELETE` e `TRUNCATE`. Os dois primeiros vêm da migração `0001`; `consumo`, `consumo_chassi` e o índice único `uq_urv_lancamento_credito_id_tipo` vêm da `0002` (PM-URV-05); `certificado` e `laudo` vêm da `0003`. Em `urv_credito` (também `0003`) só `status` e `titular_id` mudam: o gatilho compara a linha inteira menos essas duas colunas e rejeita `DELETE` e `TRUNCATE`, porque a transferência lê a quantidade do crédito para escrever no livro (achado A4 da revisão). É defesa em profundidade: a transferência única e o consumo único continuam garantidos primeiro pelo service, com `SELECT ... FOR UPDATE`, e o banco barra o que escapar.
 
 ### Data das operações
 
@@ -121,6 +121,14 @@ urv_debito = debito_periodo(qv_periodo) - ja_debitado  # qv_periodo inclui este 
 4. Insere na mesma transação da operação de negócio.
 
 `GET /auditoria/verificar` percorre a cadeia e devolve `{integra, total, primeira_quebra}`. O script `scripts/adulterar.py` desliga o gatilho, altera um evento e mostra a verificação acusando a quebra.
+
+A verificação confere a trilha contra ela mesma. `GET /auditoria/reconciliar` (`app/modules/auditoria/reconciliacao.py`) confere os dados contra o que os sustenta, para pegar quem altera uma tabela de negócio sem tocar na trilha (achado A4 da revisão):
+
+1. **Crédito × certificado:** `urv_credito.quantidade` = `certificado.fator`, e o fator é o vigente para o tipo na data da emissão.
+2. **Livro × registros:** cada lançamento vale o que o crédito ou o consumo referenciado diz (CREDITO = +quantidade da geradora; TRANSFERENCIA_SAIDA e TRANSFERENCIA_ENTRADA conforme o status e o titular; DEBITO = −`urv_debito`), e o saldo de cada empresa (soma dos lançamentos) é igual à soma recalculada pelos registros.
+3. **Registros × trilha:** certificado, laudo, crédito (inclusive status e titular), consumo e MMV conferem com o último evento que os gravou.
+
+Devolve `{conciliado, verificados, divergencias, total_divergencias}`. As duas conferências juntas ainda não detectam quem desliga o gatilho da trilha, reescreve um evento e recalcula todos os hashes seguintes: isso exige ancoragem externa da cadeia (lacuna L-14).
 
 ## Segurança
 

@@ -8,8 +8,8 @@ from app.core.db import obter_sessao
 from app.core.deps import exige_papel
 from app.core.paginacao import Pagina, Paginacao, paginacao, paginar
 from app.models import EventoAuditoria, Papel, Usuario
-from app.modules.auditoria import service
-from app.modules.auditoria.schemas import EventoSaida, VerificacaoSaida
+from app.modules.auditoria import reconciliacao, service
+from app.modules.auditoria.schemas import DivergenciaSaida, EventoSaida, ReconciliacaoSaida, VerificacaoSaida
 
 router = APIRouter(prefix="/auditoria", tags=["auditoria"])
 
@@ -56,3 +56,23 @@ def listar_eventos(
 def verificar(session: Session = Depends(obter_sessao), _: Usuario = Depends(_leitor)) -> VerificacaoSaida:
     r = service.verificar_cadeia(session)  # RF-22, art. 20 V
     return VerificacaoSaida(integra=r.integra, total=r.total, primeira_quebra=r.primeira_quebra)
+
+
+@router.get(
+    "/reconciliar",
+    response_model=ReconciliacaoSaida,
+    summary="Confere créditos, saldos e registros contra certificados, lançamentos e a trilha",
+)
+def reconciliar(
+    session: Session = Depends(obter_sessao), _: Usuario = Depends(_leitor)
+) -> ReconciliacaoSaida:
+    # RF-22, RNF-01, art. 20 V; art. 24 I: a trilha íntegra não basta se as tabelas que ela
+    # descreve foram alteradas (achado A4 da revisão).
+    r = reconciliacao.reconciliar(session)
+    divergencias = [DivergenciaSaida(**vars(d)) for d in r.divergencias]
+    return ReconciliacaoSaida(
+        conciliado=r.conciliado,
+        verificados=r.verificados,
+        divergencias=divergencias,
+        total_divergencias=len(divergencias),
+    )

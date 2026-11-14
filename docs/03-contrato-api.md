@@ -25,6 +25,7 @@ Todo valor `Decimal` (URV, fator, preço, peso, percentual) trafega como string 
 | `PATCH /vinculos/{id}` | ADMIN | `ativo` | Vinculo |
 | `GET /auditoria/eventos` | AUDITOR, ADMIN | `?entidade=&entidade_id=&tipo=&veiculo_id=` | Lista de Evento, em ordem de sequência. `veiculo_id` traz os eventos do próprio veículo e os dos registros ligados a ele (etapas, anexos, peças, pesagens, DMR, laudo, certificado e crédito gerado), que levam o `veiculo_id` no payload (L-13) |
 | `GET /auditoria/verificar` | AUDITOR, ADMIN | | `integra`, `total`, `primeira_quebra` |
+| `GET /auditoria/reconciliar` | AUDITOR, ADMIN | | `conciliado`, `verificados` (contagem por tipo de registro), `divergencias` (lista de `{verificacao, entidade, entidade_id, detalhe}`; `verificacao` é `CREDITO_FATOR`, `FATOR_VIGENTE`, `LANCAMENTO`, `SALDO` ou `TRILHA`), `total_divergencias`. Confere crédito contra o fator do certificado, saldo contra a soma dos lançamentos e registros contra os eventos da trilha (art. 20 V; art. 24 I) |
 | `GET /configuracao/fatores` | todos | | `{itens: [{tipo, fator, vigente_desde}], total, preco_base}` |
 
 ## Fluxo do veículo (backend-fluxo)
@@ -91,6 +92,8 @@ Suposições do frontend resolvidas a favor do backend: o Anexo traz `nome_origi
 | `VinculoSaida` | `id`, `geradora_id`, `fabricante_id`, `ativo`, `criado_em`, `geradora`, `fabricante` |
 | `EventoSaida` | `id`, `sequencia`, `ocorrido_em`, `usuario_id`, `empresa_id`, `tipo`, `entidade`, `entidade_id`, `payload`, `hash_anterior`, `hash` |
 | `VerificacaoSaida` | `integra`, `total`, `primeira_quebra` |
+| `ReconciliacaoSaida` | `conciliado`, `verificados`, `divergencias`, `total_divergencias` |
+| `DivergenciaSaida` | `verificacao`, `entidade`, `entidade_id`, `detalhe` |
 | `FatoresSaida` | `itens`, `total`, `preco_base` |
 | `FatorSaida` | `tipo`, `fator`, `vigente_desde` |
 | `VeiculoSaida` | `id`, `empresa_id`, `chassi`, `placa`, `renavam`, `data_entrada`, `tipo_declarado`, `tipo`, `origem_aquisicao`, `documento_entrada_tipo`, `documento_entrada_numero`, `certidao_baixa_numero`, `peso_entrada_kg`, `sem_viabilidade_desmontagem`, `estado`, `criado_em`, `rebaixado` |

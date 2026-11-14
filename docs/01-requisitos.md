@@ -27,7 +27,7 @@ Origem: Portaria GM/MDIC nº 325, de 6 de novembro de 2026 (`portaria-325-2026.p
 | RF-19 | Bloqueio de saldo negativo; exceção até 31/12/2027 com regularização até o último dia do terceiro mês seguinte | Art. 8º III e §1º | Sim |
 | RF-20 | Prazo de reporte do consumo: décimo dia útil do mês seguinte | Art. 7º, parágrafo único | Sim, como alerta |
 | RF-21 | Unicidade: um chassi em fim de vida gera crédito uma vez; um chassi novo consome uma vez | Arts. 28 e 29 | Sim |
-| RF-22 | Trilha de auditoria imutável e verificável de todos os eventos | Art. 20 V; art. 24 I | Sim, cadeia de hashes |
+| RF-22 | Trilha de auditoria imutável e verificável de todos os eventos | Art. 20 V; art. 24 I | Sim, cadeia de hashes, gatilhos e reconciliação com as tabelas de negócio; sem ancoragem externa (L-14) |
 | RF-23 | Visão de auditoria com leitura de todos os registros | Art. 9º; art. 24 V | Sim |
 | RF-24 | Relatórios ao MDIC: registros e certificados emitidos, volume de materiais, incidentes | Art. 27 | Parcial: os dois primeiros |
 | RF-25 | Exportação padronizada para portabilidade e reconciliação entre plataformas | Art. 22 | Sim, JSON |
@@ -37,7 +37,7 @@ Origem: Portaria GM/MDIC nº 325, de 6 de novembro de 2026 (`portaria-325-2026.p
 
 | ID | Requisito | Origem | Resposta no MVP |
 | --- | --- | --- | --- |
-| RNF-01 | Confidencialidade, integridade, autenticidade e imutabilidade dos registros | Art. 20 V; art. 24 I | Tabelas só de inserção, eventos encadeados por hash, rota de verificação, acesso por papel |
+| RNF-01 | Confidencialidade, integridade, autenticidade e imutabilidade dos registros | Art. 20 V; art. 24 I | Tabelas só de inserção (trilha, livro, consumo, certificado, laudo), crédito em que só status e titular mudam, eventos encadeados por hash, rotas de verificação e de reconciliação, acesso por papel |
 | RNF-02 | Segurança cibernética e LGPD | Art. 20 VI | Dados pessoais mínimos; política documentada |
 | RNF-03 | APIs seguras e padrões abertos | Art. 20 VII | REST, OpenAPI, token JWT |
 | RNF-04 | Interoperabilidade entre plataformas | Art. 22; art. 21 §5º; art. 28 | Exportação e importação em JSON versionado; rejeição de chassi já creditado |
