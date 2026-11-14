@@ -3,10 +3,9 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models import MmvStatus
-from app.modules.urv.calculo import rm_do_nivel
 
 
 class MmvCriar(BaseModel):
@@ -52,9 +51,4 @@ class MmvSaida(BaseModel):
     efeitos_a_partir_de: date
     status: MmvStatus
     criado_em: datetime
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def rm(self) -> int:
-        """RM usado no débito: 10 para o nível 1, 5 para o nível 2 (art. 3º §3º)."""
-        return rm_do_nivel(self.nivel)
+    rm: int = Field(description="RM do nível vigente hoje em config_parametro (art. 3º §3º; lacuna L-01)")

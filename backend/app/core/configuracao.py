@@ -17,6 +17,7 @@ from app.core.deps import usuario_atual
 from app.core.erros import ErroNegocio
 from app.core.relogio import agora, data_operacao
 from app.models import ChaveParametro, ConfigFator, ConfigParametro, TipoVeiculo, Usuario
+from app.modules.urv.calculo import RMS_DA_PORTARIA
 
 
 def fator_vigente(session: Session, tipo: TipoVeiculo, em: date) -> Decimal:
@@ -59,6 +60,30 @@ def parametro_vigente(session: Session, chave: ChaveParametro, em: date) -> Conf
 def preco_base_vigente(session: Session, em: date) -> Decimal:
     """Pb, art. 3º §5º."""
     return Decimal(parametro_vigente(session, ChaveParametro.PRECO_BASE, em).valor)
+
+
+RM_POR_CHAVE: dict[int, ChaveParametro] = {1: ChaveParametro.RM_NIVEL_1, 2: ChaveParametro.RM_NIVEL_2}
+
+
+def rm_vigente(session: Session, nivel: int, em: date) -> int:
+    """RM do nível do MMV na data. RF-18, art. 3º §3º: "(5 ou 10, respectivamente)".
+
+    Qual nível usa qual valor é parâmetro (lacuna L-01): o seed grava a leitura vigente.
+    """
+    chave = RM_POR_CHAVE.get(nivel)
+    if chave is None:
+        raise ErroNegocio(
+            422, "NIVEL_INVALIDO", f"Nível de reciclabilidade inválido: {nivel!r} (use 1 ou 2)."
+        )
+    valor = parametro_vigente(session, chave, em).valor
+    rm = int(valor) if valor.isdigit() else None
+    if rm not in RMS_DA_PORTARIA:
+        raise ErroNegocio(
+            422,
+            "PARAMETRO_INVALIDO",
+            f"{chave} vigente em {em} vale {valor!r}; o art. 3º §3º admite 5 ou 10.",
+        )
+    return rm
 
 
 def fim_saldo_negativo(session: Session, em: date) -> date:

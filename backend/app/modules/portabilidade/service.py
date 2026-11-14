@@ -25,7 +25,7 @@ from sqlalchemy.exc import DataError, IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.cnpj import normalizar_cnpj
-from app.core.configuracao import fator_vigente
+from app.core.configuracao import fator_vigente, rm_vigente
 from app.core.decimais import quantizar
 from app.core.erros import ErroNegocio, NaoEncontrado
 from app.core.relogio import data_operacao
@@ -75,7 +75,7 @@ from app.modules.portabilidade.schemas import (
     VeiculoPortavel,
     VinculoPortavel,
 )
-from app.modules.urv.calculo import calcular_debito, rm_do_nivel
+from app.modules.urv.calculo import calcular_debito
 from app.modules.urv.schemas import normalizar_chassi
 from app.modules.urv.service import saldo_empresa, travar_empresas
 
@@ -730,7 +730,11 @@ class _Importacao:
             raise _Rejeicao("QV_DIVERGENTE", "qv difere da quantidade de chassis distintos informados.")
         if any(not ch or len(ch) > 30 for ch in chassis):
             raise _Rejeicao("CHASSI_INVALIDO", "Há chassi vazio ou com mais de 30 caracteres.")
-        if c.rm != rm_do_nivel(mmv.nivel):
+        try:
+            rm = rm_vigente(s, mmv.nivel, data_operacao(c.registrado_em))  # art. 3º §3º; L-01
+        except ErroNegocio as exc:
+            raise _Rejeicao(exc.codigo, exc.detail) from exc
+        if c.rm != rm:
             raise _Rejeicao("RM_DIVERGENTE", f"RM {c.rm} não corresponde ao nível {mmv.nivel} do MMV.")
         if calcular_debito(c.qv, c.rm, c.pm, c.pb) != c.urv_debito:  # RF-18, art. 3º §3º
             raise _Rejeicao(

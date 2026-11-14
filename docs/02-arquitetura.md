@@ -43,7 +43,7 @@ Todas as tabelas têm `id` (UUID) e `criado_em`. Tipos monetários e de URV: `NU
 | `consumo` | `fabricante_id`, `mmv_id`, `periodo` (AAAA-MM), `qv`, `rm`, `pm`, `pb`, `urv_debito`, `saldo_apos`, `regularizar_ate`, `prazo_reporte`, `registrado_em` | Só inserção |
 | `consumo_chassi` | `consumo_id`, `chassi` único | Chassi de veículo novo. Só inserção |
 | `config_fator` | `tipo_veiculo`, `fator`, `vigente_desde` | Semeada com a tabela do art. 3º §2º |
-| `config_parametro` | `chave` (PRECO_BASE, FIM_SALDO_NEGATIVO), `valor`, `vigente_desde` | Semeada com 150000.00 e 2027-12-31 |
+| `config_parametro` | `chave` (PRECO_BASE, FIM_SALDO_NEGATIVO, RM_NIVEL_1, RM_NIVEL_2), `valor`, `vigente_desde` | Semeada com 150000.00, 2027-12-31, 10 e 5. O RM por nível é parâmetro porque a correspondência com os itens 17 e 18 do Anexo III do Decreto 12.435/2025 não foi conferida (L-01) |
 | `evento_auditoria` | `sequencia` (bigserial), `ocorrido_em`, `usuario_id`, `empresa_id`, `tipo`, `entidade`, `entidade_id`, `payload` (JSONB), `hash_anterior`, `hash` | Só inserção |
 
 `urv_lancamento`, `evento_auditoria`, `consumo` e `consumo_chassi` têm gatilho no banco que rejeita `UPDATE`, `DELETE` e `TRUNCATE`. Os dois primeiros vêm da migração `0001`; `consumo`, `consumo_chassi` e o índice único `uq_urv_lancamento_credito_id_tipo` vêm da `0002` (PM-URV-05). É defesa em profundidade: a transferência única e o consumo único continuam garantidos primeiro pelo service, com `SELECT ... FOR UPDATE`, e o banco barra o que escapar.
@@ -101,7 +101,7 @@ A falha das pré-condições 1 a 7 devolve 422 `PENDENCIAS_CERTIFICADO` com a li
 urv_debito = (qv / rm) * max(1, pm / pb)      # quantizado em 0.01, ROUND_HALF_UP
 ```
 
-- `qv` = quantidade de chassis informados. `rm` = 10 para MMV nível 1, 5 para nível 2. `pb` = 150000.00 (configuração com vigência). `pm` é informado pelo fabricante no MVP.
+- `qv` = quantidade de chassis informados. `rm` = parâmetro `RM_NIVEL_1` ou `RM_NIVEL_2` vigente na data (5 ou 10, art. 3º §3º; L-01). `pb` = 150000.00 (configuração com vigência). `pm` é informado pelo fabricante no MVP.
 - Rejeita se o MMV não está `ATIVO`, se a data é anterior a `efeitos_a_partir_de`, ou se algum chassi já foi consumido.
 - Saldo: se `saldo < urv_debito` e a data é posterior a 31/12/2027, rejeita com 409. Até 31/12/2027, aceita e grava `regularizar_ate` = último dia do terceiro mês seguinte ao do registro.
 - `prazo_reporte` = décimo dia útil do mês seguinte ao `periodo`. Registro posterior é aceito e marcado como fora do prazo.

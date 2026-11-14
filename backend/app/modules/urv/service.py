@@ -20,7 +20,7 @@ from sqlalchemy import Select, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app.core.configuracao import fim_saldo_negativo, preco_base_vigente
+from app.core.configuracao import fim_saldo_negativo, preco_base_vigente, rm_vigente
 from app.core.decimais import quantizar
 from app.core.erros import ErroNegocio, NaoEncontrado
 from app.core.relogio import data_operacao
@@ -46,7 +46,6 @@ from app.modules.urv.calculo import (
     decimo_dia_util,
     multiplicador_preco,
     regularizar_ate,
-    rm_do_nivel,
 )
 from app.modules.urv.schemas import (
     CertificadoResumo,
@@ -304,12 +303,12 @@ def _mmv_do_fabricante(session: Session, mmv_id: uuid.UUID, fabricante_id: uuid.
     return mmv
 
 
-def _memoria(qv: int, mmv: Mmv, pm: Decimal, pb: Decimal) -> MemoriaCalculo:
+def _memoria(qv: int, mmv: Mmv, rm: int, pm: Decimal, pb: Decimal) -> MemoriaCalculo:
     return MemoriaCalculo(
         formula=FORMULA_DEBITO,
         qv=qv,
         nivel=mmv.nivel,
-        rm=rm_do_nivel(mmv.nivel),
+        rm=rm,
         pm=quantizar(pm),
         pb=quantizar(pb),
         razao_preco=quantizar(Decimal(pm) / Decimal(pb), QUATRO_CASAS),
@@ -325,7 +324,8 @@ def simular_consumo(
     mmv = _mmv_do_fabricante(session, dados.mmv_id, fabricante_id)
     hoje = data_operacao(agora)
     pb = preco_base_vigente(session, hoje)
-    debito = calcular_debito(dados.quantidade, rm_do_nivel(mmv.nivel), dados.preco_medio, pb)
+    rm = rm_vigente(session, mmv.nivel, hoje)  # RF-18, art. 3º §3º; L-01
+    debito = calcular_debito(dados.quantidade, rm, dados.preco_medio, pb)
     saldo = saldo_empresa(session, fabricante_id)
     limite = fim_saldo_negativo(session, hoje)
     suficiente = saldo >= debito
@@ -338,7 +338,7 @@ def simular_consumo(
         permitido=permitido,
         regularizar_ate=regularizar_ate(hoje) if (not suficiente and permitido) else None,
         prazo_saldo_negativo=limite,
-        memoria_calculo=_memoria(dados.quantidade, mmv, dados.preco_medio, pb),
+        memoria_calculo=_memoria(dados.quantidade, mmv, rm, dados.preco_medio, pb),
     )
 
 
@@ -379,7 +379,7 @@ def registrar_consumo(
         raise _chassi_ja_consumido(ja_consumidos)
 
     pb = preco_base_vigente(session, hoje)  # art. 3º §5º
-    rm = rm_do_nivel(mmv.nivel)
+    rm = rm_vigente(session, mmv.nivel, hoje)  # RF-18, art. 3º §3º; L-01
     debito = calcular_debito(len(chassis), rm, dados.preco_medio, pb)  # RF-18, art. 3º §3º
 
     saldo = saldo_empresa(session, fabricante_id)

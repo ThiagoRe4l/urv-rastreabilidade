@@ -9,12 +9,13 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from app.core.configuracao import rm_vigente
 from app.core.db import obter_sessao
 from app.core.deps import exige_papel
 from app.core.erros import Erro
 from app.core.paginacao import Pagina, Paginacao, paginacao, paginar
 from app.core.relogio import agora, data_operacao
-from app.models import Papel, Usuario
+from app.models import Mmv, Papel, Usuario
 from app.modules.mmv import service
 from app.modules.mmv.schemas import MmvCriar, MmvSaida
 from app.modules.urv.acesso import empresa_consultada
@@ -24,6 +25,13 @@ router = APIRouter(tags=["mmv"])
 _fabricante = exige_papel(Papel.FABRICANTE)
 _leitor = exige_papel(Papel.FABRICANTE, Papel.AUDITOR, Papel.ADMIN)
 _erros = {409: {"model": Erro}, 422: {"model": Erro}}
+
+
+def _saida(session: Session, mmv: Mmv, momento: datetime) -> MmvSaida:
+    # RF-18, art. 3º §3º: o RM vem de config_parametro, vigente na data (L-01).
+    rm = rm_vigente(session, mmv.nivel, data_operacao(momento))
+    campos = {nome: getattr(mmv, nome) for nome in MmvSaida.model_fields if nome != "rm"}
+    return MmvSaida(**campos, rm=rm)
 
 
 @router.post(
@@ -41,7 +49,7 @@ def cadastrar_mmv(
 ) -> MmvSaida:
     mmv = service.cadastrar_mmv(session, usuario, dados, data_operacao(momento))  # RF-03, RF-04
     session.commit()
-    return MmvSaida.model_validate(mmv)
+    return _saida(session, mmv, momento)
 
 
 @router.get(
@@ -52,7 +60,8 @@ def listar_mmvs(
     pag: Paginacao = Depends(paginacao),
     session: Session = Depends(obter_sessao),
     usuario: Usuario = Depends(_leitor),
+    momento: datetime = Depends(agora),
 ) -> Pagina[MmvSaida]:
     alvo = empresa_consultada(usuario, empresa_id)
     itens, total = paginar(session, service.consulta_mmvs(alvo), pag)
-    return Pagina[MmvSaida](itens=[MmvSaida.model_validate(m) for m in itens], total=total)
+    return Pagina[MmvSaida](itens=[_saida(session, m, momento) for m in itens], total=total)

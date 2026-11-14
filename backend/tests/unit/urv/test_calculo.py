@@ -12,7 +12,6 @@ from app.modules.urv.calculo import (
     decimo_dia_util,
     multiplicador_preco,
     regularizar_ate,
-    rm_do_nivel,
 )
 
 PB = Decimal("150000.00")  # art. 3º §5º
@@ -76,11 +75,10 @@ def test_multiplicador_de_preco_nunca_abaixo_de_um() -> None:
     assert multiplicador_preco(Decimal("180000"), PB) == Decimal("1.2")
 
 
-def test_rm_do_nivel() -> None:
-    assert rm_do_nivel(1) == 10  # item 18 do Anexo III do Decreto 12.435/2025
-    assert rm_do_nivel(2) == 5  # item 17
+def test_rm_fora_do_art_3_par_3_e_rejeitado() -> None:
+    # Art. 3º §3º: RM é 5 ou 10. Qual nível usa qual vem de config_parametro (L-01).
     with pytest.raises(ValueError):
-        rm_do_nivel(3)
+        calcular_debito(10, 7, PB, PB)
 
 
 # --- Prazo de reporte (RF-20, art. 7º, parágrafo único) ----------------------------------------

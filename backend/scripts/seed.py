@@ -55,6 +55,10 @@ FATORES: dict[TipoVeiculo, Decimal] = {
 PARAMETROS: dict[ChaveParametro, str] = {
     ChaveParametro.PRECO_BASE: "150000.00",  # art. 3º §5º
     ChaveParametro.FIM_SALDO_NEGATIVO: "2027-12-31",  # art. 8º §1º
+    # Art. 3º §3º. Leitura anterior à revisão, mantida até o texto do Decreto 12.435/2025
+    # (Anexo III, itens 17 e 18) ser juntado ao projeto: lacuna L-01, achado A1 da revisão.
+    ChaveParametro.RM_NIVEL_1: "10",
+    ChaveParametro.RM_NIVEL_2: "5",
 }
 
 
@@ -117,10 +121,31 @@ def _dados_existentes(session: Session) -> DadosDemo | None:
     )
 
 
+def _garantir_parametros(session: Session, admin: Usuario) -> None:
+    """Grava os parâmetros que ainda não existem. Um banco semeado antes da migração 0003 ganha
+    aqui o RM por nível (RF-18, art. 3º §3º), com evento na trilha como os demais."""
+    existentes = set(session.scalars(select(ConfigParametro.chave)).all())
+    for chave, valor in PARAMETROS.items():
+        if chave in existentes:
+            continue
+        par = ConfigParametro(chave=chave, valor=valor, vigente_desde=VIGENCIA_PORTARIA)
+        session.add(par)
+        session.flush()
+        registrar_evento(
+            session,
+            admin,
+            "PARAMETRO_CONFIGURADO",
+            "config_parametro",
+            par.id,
+            {"chave": chave, "valor": valor, "vigente_desde": VIGENCIA_PORTARIA},
+        )
+
+
 def semear(session: Session) -> DadosDemo:
     """Cria os dados de demonstração na sessão, sem commit. Devolve os ids criados."""
     existentes = _dados_existentes(session)
     if existentes is not None:
+        _garantir_parametros(session, session.get(Usuario, existentes.admin_id))
         return existentes
 
     admin = _criar_usuario(session, None, EMAIL_ADMIN, "Administrador da Plataforma", Papel.ADMIN, None)
@@ -138,18 +163,7 @@ def semear(session: Session) -> DadosDemo:
             cfg.id,
             {"tipo_veiculo": tipo, "fator": fator, "vigente_desde": VIGENCIA_PORTARIA},
         )
-    for chave, valor in PARAMETROS.items():
-        par = ConfigParametro(chave=chave, valor=valor, vigente_desde=VIGENCIA_PORTARIA)
-        session.add(par)
-        session.flush()
-        registrar_evento(
-            session,
-            admin,
-            "PARAMETRO_CONFIGURADO",
-            "config_parametro",
-            par.id,
-            {"chave": chave, "valor": valor, "vigente_desde": VIGENCIA_PORTARIA},
-        )
+    _garantir_parametros(session, admin)
 
     desmonte = empresas.criar_empresa(
         session,

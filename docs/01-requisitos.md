@@ -54,7 +54,7 @@ Origem: Portaria GM/MDIC nº 325, de 6 de novembro de 2026 (`portaria-325-2026.p
 
 | Tema | Premissa |
 | --- | --- |
-| RM por nível | Nível 1 (item 18 do Anexo III do Decreto 12.435/2025) usa RM 10; nível 2 (item 17) usa RM 5 |
+| RM por nível | Parâmetro com vigência em `config_parametro` (`RM_NIVEL_1`, `RM_NIVEL_2`), não constante no código. O seed grava nível 1 = 10 e nível 2 = 5, a leitura anterior à revisão, **sem conferência contra o decreto**: o texto dos itens 16 a 18 do Anexo III do Decreto 12.435/2025 ainda não está em `docs/` (lacuna L-01, aberta). A portaria, lida pelo art. 33 junto com o art. 3º §3º, sugere o inverso (nível 1 = item 17 = RM 5). Trocar a leitura é gravar nova vigência dos dois parâmetros, sem mudar código |
 | Débito de URV | Decimal com duas casas, `ROUND_HALF_UP`, sem arredondar para inteiro |
 | Certificado | Um por chassi |
 | Crédito | Indivisível; transferido inteiro a um único fabricante |
