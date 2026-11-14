@@ -4,7 +4,22 @@ Uma linha por requisito de `01-requisitos.md`, com o arquivo de teste que o cobr
 
 ## Situação desta rodada
 
-Rodada de integração na `main` (2026-11-14), com fundação, fluxo, URV e frontend juntos e todas as rotas do contrato no ar:
+Rodada das correções da revisão independente (`revisao-independente.md`), na `main`, em 2026-11-14:
+
+```
+pytest tests/conformidade
+404 passed, 0 xfailed, 0 failed
+
+pytest tests/revisao
+9 passed, 1 skipped (A1, aguardando o decreto), 1 xfailed (j, lacuna L-14)
+
+pytest   (suíte inteira: unitários, conformidade e revisão)
+787 passed, 1 skipped, 1 xfailed
+```
+
+A revisão mostrou que 741 testes verdes conviviam com oito descumprimentos, porque código e testes partiam da mesma leitura. As correções e os testes que mudaram estão em "Correções da revisão independente", no fim deste arquivo.
+
+Rodada anterior, de integração na `main` (2026-11-14), com fundação, fluxo, URV e frontend juntos e todas as rotas do contrato no ar:
 
 ```
 pytest tests/conformidade
@@ -41,21 +56,23 @@ Rodada anterior, na branch `feat/qa`, só com a fundação: 87 passed, 317 xfail
 | RF-09 | Peças classificadas e etiqueta de rastreio | `test_rf09_10_pecas.py::test_rf09_*` | 9 | 0 | passa |
 | RF-10 | Consulta de peças por origem, tipo, condição e destino | `test_rf09_10_pecas.py::test_rf10_*` | 15 | 0 | passa |
 | RF-11 | Peso por fração e por veículo (sem rateio de lote) | `test_rf11_13_pesagens_dmr.py::test_rf11_*` | 12 | 0 | passa |
-| RF-12 | Percentual aproveitado e meta do ano, como alerta | `test_rf11_13_pesagens_dmr.py::test_rf12_*` | 4 | 0 | passa |
+| RF-12 | Percentual aproveitado sobre o peso de entrada e meta do ano, como alerta | `test_rf11_13_pesagens_dmr.py::test_rf12_*`; `tests/revisao::test_c_*` | 4 (+1) | 0 | passa |
 | RF-13 | DMR com destinatário por material | `test_rf11_13_pesagens_dmr.py::test_rf13_*` | 9 | 0 | passa |
 | RF-14 | Laudo assinado pelo responsável técnico | `test_rf14_16_laudo_certificado_credito.py::test_rf14_*` | 8 | 0 | passa |
 | RF-15 | Certificado só com etapas e evidências completas | `test_rf14_16_laudo_certificado_credito.py::test_rf15_*`; `test_rnf07_antifraude.py::test_rnf07_certificado_sem_evidencia` | 9 (+13) | 0 | passa |
 | RF-16 | Crédito no valor do fator | `test_rf14_16_laudo_certificado_credito.py::test_rf16_*` | 10 | 0 | passa |
 | RF-17 | Transferência direta e única, a fabricante com vínculo | `test_rf17_transferencia.py` | 10 | 0 | passa |
-| RF-18 | Consumo por chassi e cálculo do débito | `test_rf18_20_consumo.py::test_rf18_*` | 24 | 0 | passa |
+| RF-18 | Consumo por chassi e cálculo do débito no acumulado do MMV no período | `test_rf18_20_consumo.py::test_rf18_*`; `tests/revisao::test_a_*`, `test_b_*`, `test_i_*` | 24 (+3) | 1 | parcial: o RM por nível depende do Decreto 12.435/2025 (L-01); `test_a_rm_conforme_o_decreto` em skip |
 | RF-19 | Saldo negativo: bloqueio e exceção até 31/12/2027 | `test_rf18_20_consumo.py::test_rf19_*` | 7 | 0 | passa |
 | RF-20 | Prazo de reporte no décimo dia útil | `test_rf18_20_consumo.py::test_rf20_*` | 7 | 0 | passa |
-| RF-21 | Unicidade de chassi em fim de vida e de chassi novo | `test_rf21_unicidade.py` | 9 | 0 | passa |
-| RF-22 | Trilha de auditoria imutável e verificável | `test_rf22_23_auditoria.py::test_rf22_*` | 13 | 0 | passa |
-| RF-23 | Visão de auditoria com leitura de tudo | `test_rf22_23_auditoria.py::test_rf23_*` | 3 | 0 | passa |
+| RF-21 | Unicidade de chassi em fim de vida (VIN) e de chassi novo; Renavam e certidão únicos | `test_rf21_unicidade.py`; `tests/revisao::test_d_*`, `test_e_*` | 9 (+2) | 0 | passa |
+| RF-22 | Trilha de auditoria imutável e verificável; tabelas de negócio protegidas e reconciliadas | `test_rf22_23_auditoria.py::test_rf22_*`; `tests/revisao::test_f_*`, `test_j_*` | 13 (+1) | 1 | parcial: reescrever a cadeia recalculando os hashes não é detectado (L-14); `test_j_*` em xfail estrito |
+| RF-23 | Visão de auditoria com leitura de tudo; dossiê do crédito para o fabricante titular | `test_rf22_23_auditoria.py::test_rf23_*`; `tests/revisao::test_g_*` | 3 (+1) | 0 | passa |
 | RF-24 | Relatórios ao MDIC (registros, certificados, materiais) | `test_rf24_25_relatorios_portabilidade.py::test_rf24_*` | 6 | 0 | passa. Incidentes (art. 27 III) e plano de atualização (IV): fora do escopo |
 | RF-25 | Exportação padronizada | `test_rf24_25_relatorios_portabilidade.py::test_rf25_*` | 3 | 0 | passa |
 | RF-26 | Guarda de documentos por cinco anos | — | — | — | fora do escopo |
+| RF-27 | Item de segurança só como peça não reutilizável | `tests/unit/fluxo/test_pecas.py::test_item_de_seguranca_*` (unitário) | 1 | 0 | passa no que foi feito; as demais categorias do Anexo III 7 são a L-23 |
+| RF-28 a RF-35 | Requisitos da revisão fora do MVP (R4, R5, R7, R8, R9, R11, R12, R13) | — | — | — | fora do escopo: lacunas L-16 a L-22 e L-24 |
 
 ## Requisitos não funcionais
 
@@ -64,10 +81,10 @@ Rodada anterior, na branch `feat/qa`, só com a fundação: 87 passed, 317 xfail
 | RNF-01 | Confidencialidade, integridade e imutabilidade | `test_rnf_seguranca_e_contrato.py::test_rnf01_*`; `test_rf22_23_auditoria.py`; `test_rnf07_antifraude.py::test_rnf07_desmontadora_nao_le_dados_de_outra_empresa` | 4 | 0 | passa |
 | RNF-02 | Segurança e LGPD | `test_rnf_seguranca_e_contrato.py::test_rnf02_*` | 5 | 0 | passa, no que é testável: senha não exposta, dados pessoais mínimos. A política documentada não é testada |
 | RNF-03 | APIs seguras e padrões abertos | `test_rnf_seguranca_e_contrato.py::test_rnf03_*` | 87 | 0 | passa |
-| RNF-04 | Interoperabilidade; rejeição de chassi já creditado | `test_rf24_25_relatorios_portabilidade.py::test_rnf04_*` | 4 | 0 | passa |
+| RNF-04 | Interoperabilidade; rejeição de chassi já creditado; hash obrigatório e geradora credenciada | `test_rf24_25_relatorios_portabilidade.py::test_rnf04_*`; `tests/revisao::test_h_*`, `test_i_*` | 4 (+2) | 0 | passa. Sem assinatura de origem (L-15) |
 | RNF-05 | Sem aprisionamento: histórico exportável pela empresa | `test_rf24_25_relatorios_portabilidade.py::test_rnf05_*` | 2 | 0 | passa |
 | RNF-06 | Acesso do MDIC: AUDITOR, somente leitura | `test_rnf_seguranca_e_contrato.py::test_rnf06_*`; `test_rnf07_antifraude.py::test_rnf07_auditor_tentando_escrever` | 31 (+1) | 0 | passa |
-| RNF-07 | Antifraude | `test_rnf07_antifraude.py` | 29 | 0 | passa |
+| RNF-07 | Antifraude | `test_rnf07_antifraude.py`; `tests/revisao::test_d_*`, `test_e_*`, `test_f_*`, `test_h_*` | 29 (+4) | 0 | passa. O conteúdo da evidência não é conferido (L-17) |
 | RNF-08 | SAST e DAST por terceiro | — | — | — | fora do escopo |
 | RNF-09 | Disponibilidade de 99,5% | — | — | — | fora do escopo |
 | RNF-10 | Incidente comunicado em 24 horas | — | — | — | fora do escopo |
@@ -95,7 +112,7 @@ As 13 evidências do caso 1: documento de entrada, certidão de baixa, foto da r
 
 ## Defeitos encontrados
 
-Nenhum teste mostrou o código descumprindo a portaria ou um requisito (caso b): nenhuma correção de código saiu desta matriz. As mudanças de código da integração vieram dos pedidos de mudança (`pedidos-de-mudanca.md`).
+Na rodada de integração, nenhum teste desta matriz mostrou o código descumprindo a portaria. A revisão independente achou oito (A1 a A8), com testes escritos de fora; estão corrigidos ou registrados como lacuna, na seção seguinte.
 
 ## Testes alterados na integração
 
@@ -143,6 +160,36 @@ Na rodada da `feat/qa`, o contrato não fixava estes pontos e os testes adotaram
 | Relatório ao MDIC | `registros` é o número de veículos registrados; `materiais` traz `peso_kg` por linha ou os pesos como valores. | Confirmado: `materiais` é lista de linhas com `peso_kg`, mais `peso_total_kg`. |
 | Exportação | O arquivo tem uma chave com "versao" no nome e traz chassis, números de certificado e de DMR, laudo, peças e lançamentos. | Confirmado. |
 | Importação | Aceita o arquivo como upload no campo `arquivo` ou como corpo JSON; o teste tenta os dois. | Fixado: só corpo `application/json` (PM-URV-03 b). O teste deixou de tentar o upload. |
+
+## Correções da revisão independente
+
+Os dez testes do anexo A de `revisao-independente.md` passavam quando o problema existia. Em `backend/tests/revisao/test_revisao.py` eles afirmam o comportamento corrigido:
+
+| Teste | Achado | Afirma | Situação |
+| --- | --- | --- | --- |
+| `test_a_rm_vem_de_config_parametro` | A1 | O RM de cada nível é parâmetro com vigência; uma vigência nova muda o débito sem mudar código | passa |
+| `test_a_rm_conforme_o_decreto` | A1 | O RM de cada nível é o que os itens 17 e 18 do Anexo III do Decreto 12.435/2025 dizem | skip: o decreto não está em `docs/` (L-01); preencher `RM_DO_DECRETO` quando chegar |
+| `test_b_fracionar_o_consumo_nao_reduz_o_debito` | A3 | Dez consumos de um chassi debitam o mesmo que um de dez (1,05); Pm diferente no mesmo MMV e período é 422 | passa |
+| `test_c_meta_sobre_o_peso_do_veiculo` | A2 | 10 kg aproveitados de 1.200 kg dão 0,83 % e não atendem a meta; pesagem acima da entrada é 422 | passa |
+| `test_d_renavam_certidao_e_evidencia_nao_se_repetem_entre_chassis` | A7 | Renavam, certidão de baixa e evidência de classificação repetidos em outro chassi são 409 | passa |
+| `test_e_chassi_do_veiculo_em_fim_de_vida_e_vin` | A7 | Chassi com 16 ou 18 caracteres, com I, O ou Q, ou de 6 caracteres é 422 | passa |
+| `test_f_tabelas_de_negocio_protegidas_e_reconciliadas` | A4 | UPDATE em `urv_credito.quantidade` e em `certificado` é barrado; MMV alterado no banco aparece na reconciliação | passa |
+| `test_g_fabricante_le_o_dossie_do_credito_que_detem` | A8 | O titular lê certificado, laudo, anexos e DMRs; antes da transferência e para outro fabricante, 404 | passa |
+| `test_h_importacao_exige_hash_e_credenciamento_e_marca_o_importado` | A5 | Sem hash, 422; hash errado, 422; geradora cancelada, 422; o que entra sai com `importado: true` | passa |
+| `test_i_importacao_de_consumo_rejeita_pb_divergente` | A6 | Consumo importado com Pb diferente do vigente é rejeitado (`PB_DIVERGENTE`) | passa |
+| `test_j_reescrever_a_cadeia_recalculando_os_hashes` | A4 | A verificação acusa a trilha reescrita com os hashes recalculados | xfail estrito: exige ancoragem externa (L-14) |
+
+### Testes que codificavam a leitura errada
+
+| Teste | Leitura antiga | O que mudou |
+| --- | --- | --- |
+| `test_rf18_20_consumo.py::test_rf18_calculo_do_debito_por_mmv` (`CASOS_DE_DEBITO`) | Casos por nível, com nível 1 = RM 10 e nível 2 = RM 5 fixos | Casos por RM; o nível de cada RM é lido da configuração vigente (L-01) |
+| `test_rf11_13_pesagens_dmr.py::test_rf12_percentual_com_arredondamento_half_up` | 2 kg aproveitados de 3 kg pesados = 66,67 % | O veículo é recebido com 3 kg, para o denominador ser o peso de entrada |
+| `apoio.py::dados_veiculo` | `peso_entrada_kg` 1.200 kg contra `PESAGENS_PADRAO` de 1.000 kg, sem ninguém comparar; certidão de baixa fixa | Entrada de 1.000 kg, igual ao pesado; Renavam e certidão sorteados; evidência de classificação única por veículo (`pdf_unico`) |
+| `tests/unit/fluxo/test_residuos.py`, `test_certificado.py` | Percentual sobre o pesado (70 %, 85 %, 65 %) | Sobre os 1.180,5 kg de entrada (59,30 %, 72,00 %, 55,06 %) |
+| `tests/unit/fluxo/test_veiculos.py::test_fabricante_fica_fora_do_fluxo` | FABRICANTE recebia 403 no detalhe do veículo | 404 quando não é titular; as rotas fora do dossiê seguem 403 |
+| `tests/unit/urv/test_portabilidade.py::test_arquivo_sem_hash_e_aceito` | Arquivo sem hash era importado | `test_arquivo_sem_hash_e_rejeitado`: 422 `HASH_AUSENTE` |
+| `tests/unit/urv/test_consumo.py::test_simulacao_devolve_debito_saldo_e_memoria_de_calculo` | Memória de cálculo sem o acumulado | Traz `qv_consumo` e `debito_ja_registrado` |
 
 ## Preparação feita fora da API
 
