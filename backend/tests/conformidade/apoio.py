@@ -59,7 +59,7 @@ PESAGENS_PADRAO = (
     ("FERROSO", "RECICLAGEM", "800.000"),
     ("NAO_FERROSO", "RECICLAGEM", "100.000"),
     ("NAO_METALICO", "REJEITO", "100.000"),
-)  # 900 / 1000 = 90,00 % aproveitado
+)  # 900 aproveitados / 1.000 de entrada = 90,00 % (art. 18 §5º)
 
 
 class Api:
@@ -206,7 +206,7 @@ def dados_veiculo(**alteracoes: Any) -> dict[str, Any]:
         "documento_entrada_tipo": "NF_ENTRADA",
         "documento_entrada_numero": "NF-1001",
         "certidao_baixa_numero": "CB-2001",
-        "peso_entrada_kg": "1200.000",
+        "peso_entrada_kg": "1000.000",  # PESAGENS_PADRAO pesa o veículo inteiro
         "sem_viabilidade_desmontagem": False,
     }
     corpo.update(alteracoes)

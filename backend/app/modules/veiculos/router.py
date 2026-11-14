@@ -74,8 +74,8 @@ def detalhar_veiculo(
         pendencias_certificado=documentos.pendencias_certificado(  # RF-15; PM-URV-06
             session, veiculo, data_operacao(momento)
         ),
-        percentual_aproveitado=residuos.percentual_aproveitado(  # RF-12
-            residuos.pesagens_do_veiculo(session, veiculo.id)
+        percentual_aproveitado=residuos.percentual_aproveitado(  # RF-12, art. 18 §5º
+            residuos.pesagens_do_veiculo(session, veiculo.id), veiculo.peso_entrada_kg
         ),
         laudo_id=laudo.id if laudo else None,
         certificado_id=certificado.id if certificado else None,

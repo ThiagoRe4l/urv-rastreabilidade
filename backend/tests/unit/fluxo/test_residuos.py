@@ -34,7 +34,6 @@ def _dmr(**mudancas) -> dict:
 @pytest.mark.parametrize(
     ("itens", "esperado"),
     [
-        ((), None),
         ((("RECICLAGEM", "700"), ("REJEITO", "300")), Decimal("70.00")),
         ((("REJEITO", "10"),), Decimal("0.00")),
         (
@@ -50,11 +49,28 @@ def _dmr(**mudancas) -> dict:
         ((("RECICLAGEM", "79.994"), ("REJEITO", "20.006")), Decimal("79.99")),
     ],
 )
-def test_percentual_aproveitado(itens, esperado) -> None:
-    resultado = percentual_aproveitado(_pesagens(*itens))
+def test_percentual_aproveitado_com_veiculo_inteiro_pesado(itens, esperado) -> None:
+    pesagens = _pesagens(*itens)
+    resultado = percentual_aproveitado(pesagens, sum(p.peso_kg for p in pesagens))
     assert resultado == esperado
-    if esperado is not None:
-        assert resultado.as_tuple().exponent == -2  # sempre duas casas
+    assert resultado.as_tuple().exponent == -2  # sempre duas casas
+
+
+@pytest.mark.parametrize(
+    ("itens", "peso_entrada", "esperado"),
+    [
+        ((), "1200", None),  # sem pesagem não há o que medir
+        ((("RECICLAGEM", "10"),), None, None),  # sem peso de entrada não há denominador
+        # RF-12, art. 18 §5º: o denominador é o peso do veículo. 10 kg de 1.200 kg = 0,83 %.
+        ((("RECICLAGEM", "10"),), "1200", Decimal("0.83")),
+        # 900 aproveitados de 1.200: os 200 kg não pesados contam como não aproveitados.
+        ((("RECICLAGEM", "900"), ("REJEITO", "100")), "1200", Decimal("75.00")),
+        ((("RECICLAGEM", "1180.500"),), "1180.500", Decimal("100.00")),
+    ],
+)
+def test_percentual_aproveitado_sobre_o_peso_de_entrada(itens, peso_entrada, esperado) -> None:
+    entrada = Decimal(peso_entrada) if peso_entrada else None
+    assert percentual_aproveitado(_pesagens(*itens), entrada) == esperado
 
 
 @pytest.mark.parametrize(
@@ -85,6 +101,17 @@ def test_atende_meta() -> None:
 # --- Pesagens (RF-11) ---------------------------------------------------------------------------
 
 
+def test_pesagens_acima_do_peso_de_entrada_sao_rejeitadas(client, h) -> None:
+    """RF-11 e RF-12, art. 18 §§5º e 6º: as frações não pesam mais que o veículo (A2 da revisão)."""
+    v = criar_veiculo(client, h, peso_entrada_kg="1000.000")
+    assert pesagem(client, h, v["id"], "FERROSO", "RECICLAGEM", "999.000").status_code == 201
+    assert pesagem(client, h, v["id"], "NAO_METALICO", "REJEITO", "1.000").status_code == 201  # = entrada
+    r = pesagem(client, h, v["id"], "FLUIDOS", "REJEITO", "0.001")
+    assert r.status_code == 422, r.text
+    assert r.json()["codigo"] == "PESO_ACIMA_DA_ENTRADA"
+    assert client.get(f"{VEICULOS}/{v['id']}/pesagens", headers=h).json()["total"] == 2
+
+
 def test_pesagens_por_fracao_e_resumo(client, h, db_session) -> None:
     v = criar_veiculo(client, h)
     url = f"{VEICULOS}/{v['id']}/pesagens"
@@ -92,6 +119,8 @@ def test_pesagens_por_fracao_e_resumo(client, h, db_session) -> None:
         "itens": [],
         "total": 0,
         "peso_total_kg": "0.000",
+        "peso_entrada_kg": "1180.500",
+        "peso_nao_contabilizado_kg": "1180.500",
         "percentual_aproveitado": None,
         "meta_ano": str(meta) if (meta := meta_do_ano(date.today().year)) else None,
         "atende_meta": None,
@@ -108,8 +137,11 @@ def test_pesagens_por_fracao_e_resumo(client, h, db_session) -> None:
     # Sem ordem: no teste tudo roda numa transação só, e `criado_em` (now()) sai igual.
     assert {p["fracao"] for p in resumo["itens"]} == {"FERROSO", "FLUIDOS", "NAO_METALICO"}
     assert resumo["peso_total_kg"] == "1000.000"
-    assert resumo["percentual_aproveitado"] == "65.00"
-    assert client.get(f"{VEICULOS}/{v['id']}", headers=h).json()["percentual_aproveitado"] == "65.00"
+    assert resumo["peso_entrada_kg"] == "1180.500"
+    assert resumo["peso_nao_contabilizado_kg"] == "180.500"
+    # RF-12, art. 18 §5º: 650 kg aproveitados sobre os 1.180,5 kg do veículo, não sobre os 1.000 pesados.
+    assert resumo["percentual_aproveitado"] == "55.06"
+    assert client.get(f"{VEICULOS}/{v['id']}", headers=h).json()["percentual_aproveitado"] == "55.06"
     assert eventos(db_session, "PESAGEM_REGISTRADA", r.json()["id"])[0].payload["peso_kg"] == "612.500"
 
 

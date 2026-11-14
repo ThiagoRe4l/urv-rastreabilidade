@@ -88,7 +88,7 @@ A falha das pré-condições 1 a 7 devolve 422 `PENDENCIAS_CERTIFICADO` com a li
 
 ### Meta de aproveitamento (RF-12)
 
-`percentual = soma(peso onde destino != REJEITO) / soma(peso)`. Metas: 80% (2027–2028), 85% (2029–2030), 90% (2031–2032), 95% (2033 em diante). Em 2026 não há meta: só registro (art. 18 §7º).
+`percentual = soma(peso onde destino != REJEITO) / peso_entrada_kg` (art. 18 §5º: "sobre o peso total do veículo"). O peso de entrada sem pesagem conta como não aproveitado; a soma das pesagens não passa do peso de entrada (422 `PESO_ACIMA_DA_ENTRADA`). Metas: 80% (2027–2028), 85% (2029–2030), 90% (2031–2032), 95% (2033 em diante). Em 2026 não há meta: só registro (art. 18 §7º).
 
 ### Crédito e transferência (RF-16, RF-17)
 

@@ -91,7 +91,7 @@ def test_rf12_percentual_aproveitado_e_o_peso_que_nao_e_rejeito(api) -> None:
 
 
 def test_rf12_percentual_com_arredondamento_half_up(api) -> None:
-    v = receber_veiculo(api)
+    v = receber_veiculo(api, peso_entrada_kg="3.000")
     ok(pesar(api, OPERADOR, v["id"], "FERROSO", "RECICLAGEM", "2.000"))
     ok(pesar(api, OPERADOR, v["id"], "NAO_METALICO", "REJEITO", "1.000"))
     percentual = dec(ok(api.get(f"/veiculos/{v['id']}/pesagens", OPERADOR))["percentual_aproveitado"])

@@ -45,8 +45,8 @@ Depois do certificado, o que ele atesta não muda: pesagem, peça nova e etapa d
 | `PATCH /pecas/{id}` | `destino?`, `descaracterizada?` | Peca. 422 `DESCARACTERIZACAO_IRREVERSIVEL` ao desmarcar |
 | `GET /pecas` | `?veiculo_id=&chassi=&nome=&condicao=&destino=&classificacao=` | Lista de Peca. Toda Peca traz `chassi` (PM-WEB-04). `chassi` busca por trecho; `veiculo_id` é exato |
 | `GET /pecas/rastreio/{codigo}` | público | `nome`, `chassi`, `data`, `cnpj`, `codigo` e `destino`. Nada além disso: a `condicao` não é pública (PM-WEB-05) |
-| `POST /veiculos/{id}/pesagens` | `fracao`, `destino`, `peso_kg` | Pesagem |
-| `GET /veiculos/{id}/pesagens` | | `itens`, `total`, `peso_total_kg`, `percentual_aproveitado`, `meta_ano` e `atende_meta` (PM-03 b) |
+| `POST /veiculos/{id}/pesagens` | `fracao`, `destino`, `peso_kg` | Pesagem. 422 `PESO_ACIMA_DA_ENTRADA` se a soma das pesagens passaria do `peso_entrada_kg` do veículo (art. 18 §§5º e 6º) |
+| `GET /veiculos/{id}/pesagens` | | `itens`, `total`, `peso_total_kg`, `peso_entrada_kg`, `peso_nao_contabilizado_kg`, `percentual_aproveitado`, `meta_ano` e `atende_meta` (PM-03 b). `percentual_aproveitado` é o peso com destino diferente de `REJEITO` sobre o `peso_entrada_kg`; o não contabilizado conta como não aproveitado (art. 18 §5º) |
 | `POST /veiculos/{id}/dmrs` | `numero`, `destinatario_nome`, `destinatario_cnpj`, `tipo_material`, `peso_kg` | Dmr com `mtr_numero` simulado. 409 `DMR_DUPLICADA` para número repetido no mesmo veículo (PM-03 g) |
 | `GET /veiculos/{id}/dmrs` | | Lista de Dmr |
 | `POST /veiculos/{id}/laudo` | `responsavel_nome`, `responsavel_registro` | Laudo. Exige etapas de descontaminação e destruição concluídas: 422 `PENDENCIAS_LAUDO` com `pendencias`. 409 `LAUDO_JA_EMITIDO` (PM-03 e) |
@@ -101,7 +101,7 @@ Suposições do frontend resolvidas a favor do backend: o Anexo traz `nome_origi
 | `Etiqueta` | `nome`, `chassi`, `data`, `cnpj`, `codigo` |
 | `RastreioSaida` | `nome`, `chassi`, `data`, `cnpj`, `codigo`, `destino` |
 | `PesagemSaida` | `id`, `veiculo_id`, `fracao`, `destino`, `peso_kg`, `criado_em` |
-| `PesagensSaida` | `itens`, `total`, `peso_total_kg`, `percentual_aproveitado`, `meta_ano`, `atende_meta` |
+| `PesagensSaida` | `itens`, `total`, `peso_total_kg`, `peso_entrada_kg`, `peso_nao_contabilizado_kg`, `percentual_aproveitado`, `meta_ano`, `atende_meta` |
 | `DmrSaida` | `id`, `veiculo_id`, `numero`, `mtr_numero`, `destinatario_nome`, `destinatario_cnpj`, `tipo_material`, `peso_kg`, `emitida_em` |
 | `LaudoSaida` | `id`, `veiculo_id`, `responsavel_nome`, `responsavel_registro`, `assinado_em`, `hash_conteudo`, `assinatura` |
 | `AssinaturaSaida` | `algoritmo`, `valor` |

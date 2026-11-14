@@ -30,8 +30,14 @@ class PesagensSaida(BaseModel):
 
     itens: list[PesagemSaida]
     total: int
-    peso_total_kg: Decimal
-    percentual_aproveitado: Decimal | None = Field(description="Em pontos, de 0 a 100; nulo sem pesagens")
+    peso_total_kg: Decimal = Field(description="Soma das pesagens")
+    peso_entrada_kg: Decimal | None = Field(description="Peso do veículo na recepção: o denominador da meta")
+    peso_nao_contabilizado_kg: Decimal | None = Field(
+        description="Peso de entrada sem pesagem; conta como não aproveitado (art. 18 §5º)"
+    )
+    percentual_aproveitado: Decimal | None = Field(
+        description="Peso com destino ≠ REJEITO sobre o peso de entrada, em pontos; nulo sem pesagens"
+    )
     meta_ano: Decimal | None = Field(description="Meta do ano corrente em pontos; nula até 2026")
     atende_meta: bool | None = Field(
         description="Alerta, não bloqueio (art. 17 §2º); nulo sem meta ou pesagem"

@@ -24,20 +24,29 @@ CEM = Decimal("100")
 # --- Aproveitamento e meta ---------------------------------------------------------------------
 
 
-def percentual_aproveitado(pesagens: Iterable[Pesagem]) -> Decimal | None:
-    """RF-12, art. 18 §5º: soma(peso com destino ≠ REJEITO) / soma(peso), em pontos (0 a 100).
+def percentual_aproveitado(pesagens: Iterable[Pesagem], peso_entrada_kg: Decimal | None) -> Decimal | None:
+    """RF-12, art. 18 §5º: soma(peso com destino ≠ REJEITO) / peso_entrada_kg, em pontos (0 a 100).
 
-    Duas casas, ROUND_HALF_UP. `None` sem pesagens.
+    A meta é "sobre o peso total do veículo" (art. 18 §5º), não sobre o que foi pesado: o peso de
+    entrada que nenhuma pesagem contabilizou conta como não aproveitado (achado A2 da revisão).
+    Duas casas, ROUND_HALF_UP. `None` sem pesagens ou sem peso de entrada.
     """
-    total = Decimal(0)
-    aproveitado = Decimal(0)
-    for p in pesagens:
-        total += p.peso_kg
-        if p.destino != DestinoPesagem.REJEITO:
-            aproveitado += p.peso_kg
-    if total == 0:
+    pesagens = list(pesagens)
+    if not pesagens or not peso_entrada_kg:
         return None
-    return quantizar(aproveitado * CEM / total)
+    aproveitado = sum((p.peso_kg for p in pesagens if p.destino != DestinoPesagem.REJEITO), Decimal(0))
+    return quantizar(aproveitado * CEM / Decimal(peso_entrada_kg))
+
+
+def peso_pesado(pesagens: Iterable[Pesagem]) -> Decimal:
+    return sum((p.peso_kg for p in pesagens), Decimal("0.000"))
+
+
+def peso_nao_contabilizado(pesagens: Iterable[Pesagem], peso_entrada_kg: Decimal | None) -> Decimal | None:
+    """Peso de entrada sem pesagem: conta como não aproveitado (art. 18 §§5º e 6º)."""
+    if not peso_entrada_kg:
+        return None
+    return quantizar_peso(Decimal(peso_entrada_kg) - peso_pesado(pesagens))
 
 
 def meta_do_ano(ano: int) -> Decimal | None:
@@ -78,10 +87,19 @@ def registrar_pesagem(
     veiculo = veiculos.obter_veiculo(session, usuario, veiculo_id, bloquear=True)
     # O certificado grava o percentual aproveitado; pesagem posterior o tornaria falso.
     veiculos.exigir_sem_certificado(veiculo)
+    peso = quantizar_peso(dados.peso_kg)
+    # RF-11 e RF-12, art. 18 §§5º e 6º: as frações somam no máximo o peso do veículo.
+    if veiculo.peso_entrada_kg is not None:
+        ja_pesado = peso_pesado(pesagens_do_veiculo(session, veiculo.id))
+        if ja_pesado + peso > veiculo.peso_entrada_kg:
+            raise ErroNegocio(
+                422,
+                "PESO_ACIMA_DA_ENTRADA",
+                f"As pesagens somariam {ja_pesado + peso} kg, acima do peso de entrada do veículo "
+                f"({veiculo.peso_entrada_kg} kg) (art. 18 §§5º e 6º).",
+            )
 
-    pesagem = Pesagem(
-        veiculo=veiculo, fracao=dados.fracao, destino=dados.destino, peso_kg=quantizar_peso(dados.peso_kg)
-    )
+    pesagem = Pesagem(veiculo=veiculo, fracao=dados.fracao, destino=dados.destino, peso_kg=peso)
     session.add(pesagem)
     veiculos.marcar_em_processo(veiculo)
     session.flush()

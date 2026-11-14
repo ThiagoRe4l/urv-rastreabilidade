@@ -265,7 +265,8 @@ def test_fluxo_completo_por_http_ate_o_certificado(
     assert c["empresa_id"] == str(dados_demo.desmonte_id)
     assert c["tipo_veiculo"] == "SINISTRADO_PEQUENA_MEDIA"
     assert c["fator"] == "0.94"
-    assert c["percentual_aproveitado"] == "85.00"
+    # RF-12, art. 18 §5º: 850 kg aproveitados sobre os 1.180,5 kg de entrada (A2 da revisão).
+    assert c["percentual_aproveitado"] == "72.00"
     assert len(c["hash_conteudo"]) == 64
     assert c["credito"]["quantidade"] == "0.94"
     assert c["credito"]["status"] == "DISPONIVEL"
@@ -371,12 +372,13 @@ def test_destinacao_concluida_antes_do_certificado_encerra_na_emissao(client, h)
 
 def test_abaixo_da_meta_e_alerta_e_nao_bloqueio(client, h, db_session, dados_demo) -> None:
     v = criar_veiculo(client, h)
-    executar_passos(client, h, v["id"])  # 700 kg reciclados, 300 kg de rejeito: 70%
+    # 700 kg reciclados de 1.180,5 kg de entrada: 59,30% (art. 18 §5º; A2 da revisão).
+    executar_passos(client, h, v["id"])
     operador = db_session.get(Usuario, dados_demo.operador_id)
     cert, _ = documentos.emitir_certificado(
         db_session, operador, uuid.UUID(v["id"]), agora=datetime(2027, 3, 1, tzinfo=UTC)
     )
-    assert cert.percentual_aproveitado == Decimal("70.00")
+    assert cert.percentual_aproveitado == Decimal("59.30")
     assert cert.meta_ano == Decimal("80.00")
     assert cert.atende_meta is False
 
@@ -388,7 +390,7 @@ def test_em_2026_nao_ha_meta_so_registro(client, h, db_session, dados_demo) -> N
     cert, _ = documentos.emitir_certificado(
         db_session, operador, uuid.UUID(v["id"]), agora=datetime(2026, 12, 1, tzinfo=UTC)
     )
-    assert cert.percentual_aproveitado == Decimal("70.00")
+    assert cert.percentual_aproveitado == Decimal("59.30")
     assert cert.meta_ano is None and cert.atende_meta is None
 
 

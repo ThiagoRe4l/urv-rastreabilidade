@@ -5,7 +5,6 @@ Dono: backend-fluxo (agente 01). O router já está registrado em app/main.py.
 
 import uuid
 from datetime import datetime
-from decimal import Decimal
 
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
@@ -52,12 +51,14 @@ def listar_pesagens(
 ) -> PesagensSaida:
     veiculo = veiculos.obter_veiculo(session, usuario, veiculo_id)
     pesagens = service.pesagens_do_veiculo(session, veiculo.id)
-    percentual = service.percentual_aproveitado(pesagens)  # RF-12
+    percentual = service.percentual_aproveitado(pesagens, veiculo.peso_entrada_kg)  # RF-12, art. 18 §5º
     meta = service.meta_do_ano(data_operacao(momento).year)  # RF-12, art. 18 §7º; PM-URV-06
     return PesagensSaida(
         itens=[PesagemSaida.model_validate(p) for p in pesagens],
         total=len(pesagens),
-        peso_total_kg=sum((p.peso_kg for p in pesagens), Decimal("0.000")),
+        peso_total_kg=service.peso_pesado(pesagens),
+        peso_entrada_kg=veiculo.peso_entrada_kg,
+        peso_nao_contabilizado_kg=service.peso_nao_contabilizado(pesagens, veiculo.peso_entrada_kg),
         percentual_aproveitado=percentual,
         meta_ano=meta,
         atende_meta=service.atende_meta(percentual, meta),

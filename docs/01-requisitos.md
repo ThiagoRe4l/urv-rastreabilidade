@@ -60,7 +60,7 @@ Origem: Portaria GM/MDIC nº 325, de 6 de novembro de 2026 (`portaria-325-2026.p
 | Crédito | Indivisível; transferido inteiro a um único fabricante |
 | Titular do crédito | A empresa que emite o certificado |
 | Formato de troca entre plataformas | JSON próprio, versionado, isolado em um módulo |
-| Peso aproveitado | Soma dos pesos por destino sobre o peso total destinado |
+| Peso aproveitado | Não é premissa: o art. 18 §5º fixa a meta "sobre o peso total do veículo ou lote de veículos". Percentual = soma das pesagens com destino diferente de `REJEITO` sobre o `peso_entrada_kg` do veículo. O peso de entrada que nenhuma pesagem contabilizou conta como não aproveitado, e pesagens que somariam mais que o peso de entrada são rejeitadas (422 `PESO_ACIMA_DA_ENTRADA`). A leitura anterior ("sobre o peso total destinado") trocava o denominador (achado A2 da revisão) |
 | Meta de aproveitamento | Gera alerta, não bloqueia o certificado (o descumprimento é apurado pelo MDIC, art. 17 §2º) |
 | Dia útil | Segunda a sexta, sem calendário de feriados |
 | Evidência de classificação | Todo tipo diferente de `SUCATA_INSERVIVEL`, inclusive o veículo licenciado em condições de rodagem, exige evidência de classificação (art. 6º I c). Sem ela, o veículo é tratado como sucata inservível, com o tipo declarado preservado. Isso estende ao veículo licenciado a regra do art. 2º §5º, que a portaria aplica só a sucata e sinistrado |

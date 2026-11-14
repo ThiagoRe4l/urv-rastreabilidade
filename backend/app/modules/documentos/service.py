@@ -132,7 +132,8 @@ def emitir_laudo(
                 for e in sorted(veiculo.etapas, key=lambda e: e.tipo)
             ],
             "pesagens": [{"fracao": p.fracao, "destino": p.destino, "peso_kg": p.peso_kg} for p in pesagens],
-            "percentual_aproveitado": residuos.percentual_aproveitado(pesagens),
+            "peso_entrada_kg": veiculo.peso_entrada_kg,
+            "percentual_aproveitado": residuos.percentual_aproveitado(pesagens, veiculo.peso_entrada_kg),
             "pecas": [
                 {
                     "nome": p.nome,
@@ -295,8 +296,10 @@ def emitir_certificado(
 
     empresa = session.get(Empresa, veiculo.empresa_id)
     laudo = obter_laudo(session, veiculo.id)
-    # RF-12, art. 18 §5º: abaixo da meta é alerta gravado no certificado, não bloqueio.
-    percentual = residuos.percentual_aproveitado(residuos.pesagens_do_veiculo(session, veiculo.id))
+    # RF-12, art. 18 §5º: sobre o peso de entrada; abaixo da meta é alerta, não bloqueio.
+    percentual = residuos.percentual_aproveitado(
+        residuos.pesagens_do_veiculo(session, veiculo.id), veiculo.peso_entrada_kg
+    )
     meta = residuos.meta_do_ano(dia.year)
     # RF-16, art. 3º §2º: o fator é o do tipo efetivo, vigente na data da emissão.
     fator = fator_vigente(session, veiculo.tipo, dia)
