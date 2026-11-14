@@ -76,8 +76,10 @@ def test_simulacao_devolve_debito_saldo_e_memoria_de_calculo(
         "regularizar_ate": "2027-02-28",
         "prazo_saldo_negativo": "2027-12-31",
         "memoria_calculo": {
-            "formula": "urv_debito = (qv / rm) * max(1, pm / pb)",
+            "formula": "urv_debito = (qv_periodo / rm) * max(1, pm / pb) - debito_ja_registrado_no_periodo",
             "qv": 1000,
+            "qv_consumo": 1000,
+            "debito_ja_registrado": "0.00",
             "nivel": 1,
             "rm": 10,
             "pm": "180000.00",
@@ -89,6 +91,44 @@ def test_simulacao_devolve_debito_saldo_e_memoria_de_calculo(
     # Simular não grava nada.
     assert _total(db_session, Consumo) == 0
     assert saldo_empresa(db_session, dados_demo.montadora_id) == Decimal("2.00")
+
+
+# --- Débito no acumulado do MMV no período (RF-18, art. 3º §§3º e 4º; A3 da revisão) ----------
+
+
+def test_fracionar_o_consumo_no_periodo_nao_reduz_o_debito(client, auth, relogio, mmv) -> None:
+    # Pm 157.400 e RM 10: o lote de 10 debita 1,05 (1,0493 arredondado uma vez).
+    debitos = [
+        Decimal(_consumir(client, auth, mmv, [vin(900 + n)], preco="157400.00").json()["urv_debito"])
+        for n in range(10)
+    ]
+    # Um chassi por consumo daria 10 x 0,10 = 1,00; no acumulado, a soma é a do lote.
+    assert sum(debitos) == Decimal("1.05")
+    assert debitos[0] == Decimal("0.10") and debitos[1] == Decimal("0.11")
+
+
+def test_outro_periodo_comeca_novo_acumulado(client, auth, relogio, mmv) -> None:
+    a = _consumir(client, auth, mmv, vins(10, 950), preco="157400.00", periodo="2026-11").json()
+    b = _consumir(client, auth, mmv, vins(10, 960), preco="157400.00", periodo="2026-10").json()
+    assert a["urv_debito"] == b["urv_debito"] == "1.05"
+
+
+def test_pm_diferente_no_mesmo_mmv_e_periodo_e_rejeitado(client, auth, relogio, mmv, db_session) -> None:
+    assert _consumir(client, auth, mmv, vins(5, 970), preco="300000.00").status_code == 201
+    r = _consumir(client, auth, mmv, vins(5, 980), preco="100000.00")
+    assert r.status_code == 422, r.text
+    assert r.json()["codigo"] == "PM_DIVERGENTE_NO_PERIODO"
+    assert _total(db_session, Consumo) == 1
+
+
+def test_simulacao_com_periodo_considera_o_ja_registrado(client, auth, relogio, mmv) -> None:
+    assert _consumir(client, auth, mmv, vins(9, 990), preco="157400.00").status_code == 201  # 0,94
+    corpo = {"mmv_id": str(mmv.id), "quantidade": 1, "preco_medio": "157400.00", "periodo": "2026-11"}
+    r = client.post(f"{URV}/consumos/simular", json=corpo, headers=auth(EMAIL_FABRICANTE))
+    assert r.status_code == 200, r.text
+    memoria = r.json()["memoria_calculo"]
+    assert (memoria["qv"], memoria["qv_consumo"], memoria["debito_ja_registrado"]) == (10, 1, "0.94")
+    assert r.json()["urv_debito"] == "0.11"  # 1,05 do acumulado menos 0,94
 
 
 def test_simulacao_com_preco_abaixo_do_base_e_nivel_2(client, auth, relogio, db_session, dados_demo) -> None:

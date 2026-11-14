@@ -67,8 +67,8 @@ Rotas "da empresa" usam a empresa do token. AUDITOR e ADMIN não têm empresa: e
 | `GET /urv/extrato` | empresa; AUDITOR e ADMIN | `?empresa_id=&tipo=` | Lista de Lancamento (PM-URV-03 e) |
 | `GET /urv/creditos` | empresa; AUDITOR e ADMIN | `?status=&empresa_id=` | Lista de Credito com `certificado` (`id`, `numero`, `tipo_veiculo`, `fator`, `emitido_em`) e `chassi` (PM-WEB-05) |
 | `POST /urv/creditos/{id}/transferir` | DESMONTADORA, RECICLADORA | `fabricante_id` | Credito. 409 `CREDITO_JA_TRANSFERIDO`, 422 `SEM_VINCULO`, 422 `FABRICANTE_SEM_REGISTRO_COMPROMISSOS` (PM-URV-04) |
-| `POST /urv/consumos/simular` | FABRICANTE | `mmv_id`, `quantidade`, `preco_medio` | `urv_debito`, `saldo_atual`, `saldo_apos`, `saldo_suficiente`, `permitido`, `regularizar_ate?`, `prazo_saldo_negativo` e `memoria_calculo` (`formula`, `qv`, `nivel`, `rm`, `pm`, `pb`, `razao_preco`, `multiplicador`) (PM-URV-03 d, PM-WEB-05) |
-| `POST /urv/consumos` | FABRICANTE | `mmv_id`, `periodo`, `preco_medio`, `chassis[]` | Consumo. 409 `SALDO_INSUFICIENTE`, 409 `CHASSI_JA_CONSUMIDO`, 422 `MMV_SEM_EFEITOS` (também para MMV retirado), 422 `CHASSI_REPETIDO_NA_LISTA` (PM-URV-04) |
+| `POST /urv/consumos/simular` | FABRICANTE | `mmv_id`, `quantidade`, `preco_medio`, `periodo?` | `urv_debito`, `saldo_atual`, `saldo_apos`, `saldo_suficiente`, `permitido`, `regularizar_ate?`, `prazo_saldo_negativo` e `memoria_calculo` (`formula`, `qv`, `qv_consumo`, `debito_ja_registrado`, `nivel`, `rm`, `pm`, `pb`, `razao_preco`, `multiplicador`) (PM-URV-03 d, PM-WEB-05). Com `periodo`, o débito é o do acumulado do MMV no período menos o já registrado, como no registro; `qv` é o acumulado e `qv_consumo` o deste consumo |
+| `POST /urv/consumos` | FABRICANTE | `mmv_id`, `periodo`, `preco_medio`, `chassis[]` | Consumo. `urv_debito` = débito do Qv acumulado do MMV no período menos o já debitado (art. 3º §3º). 409 `SALDO_INSUFICIENTE`, 409 `CHASSI_JA_CONSUMIDO`, 422 `MMV_SEM_EFEITOS` (também para MMV retirado), 422 `CHASSI_REPETIDO_NA_LISTA` (PM-URV-04), 422 `PM_DIVERGENTE_NO_PERIODO` (art. 3º §4º) |
 | `GET /urv/consumos` | FABRICANTE, AUDITOR, ADMIN | `?empresa_id=&chassi=` | Lista de Consumo com `fora_do_prazo` e `chassis`. `chassi` é busca exata, normalizada como no registro (PM-WEB-06) |
 | `GET /relatorios/mdic` | AUDITOR, ADMIN | `?ano=` | `registros`, `certificados_emitidos`, `urv_gerada`, `urv_transferida`, `urv_consumida`, `materiais` (peso por fração e destino) |
 | `GET /portabilidade/exportar` | empresa; AUDITOR e ADMIN com `?empresa_id=` | | Arquivo JSON versionado com todo o histórico da empresa |
@@ -114,7 +114,7 @@ Suposições do frontend resolvidas a favor do backend: o Anexo traz `nome_origi
 | `CreditoSaida` | `id`, `certificado_id`, `certificado`, `chassi`, `geradora_id`, `geradora`, `titular_id`, `titular`, `quantidade`, `status`, `criado_em` |
 | `CertificadoResumo` | `id`, `numero`, `tipo_veiculo`, `fator`, `emitido_em` |
 | `SimulacaoSaida` | `urv_debito`, `saldo_atual`, `saldo_apos`, `saldo_suficiente`, `permitido`, `regularizar_ate`?, `prazo_saldo_negativo`, `memoria_calculo` |
-| `MemoriaCalculo` | `formula`, `qv`, `nivel`, `rm`, `pm`, `pb`, `razao_preco`, `multiplicador` |
+| `MemoriaCalculo` | `formula`, `qv`, `qv_consumo`, `debito_ja_registrado`, `nivel`, `rm`, `pm`, `pb`, `razao_preco`, `multiplicador` |
 | `ConsumoSaida` | `id`, `fabricante_id`, `mmv_id`, `mmv_codigo`, `periodo`, `qv`, `rm`, `pm`, `pb`, `urv_debito`, `saldo_apos`, `regularizar_ate`, `prazo_reporte`, `registrado_em`, `fora_do_prazo`, `chassis` |
 | `RelatorioMdicSaida` | `ano`, `registros`, `certificados_emitidos`, `urv_gerada`, `urv_transferida`, `urv_consumida`, `materiais`, `peso_total_kg` |
 | `MaterialSaida` | `fracao`, `destino`, `peso_kg` |

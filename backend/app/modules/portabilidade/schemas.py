@@ -206,7 +206,9 @@ class ConsumoPortavel(BaseModel):
     rm: int
     pm: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
     pb: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
-    urv_debito: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
+    urv_debito: Decimal = Field(
+        ge=0, max_digits=14, decimal_places=2, description="Deste consumo, no acumulado do MMV no período"
+    )
     saldo_apos: Decimal = Field(max_digits=14, decimal_places=2)
     regularizar_ate: date | None = None
     prazo_reporte: date

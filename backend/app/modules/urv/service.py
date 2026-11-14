@@ -13,6 +13,7 @@ linha do crédito → linhas de empresa (em ordem de id) → cadeia de auditoria
 import uuid
 from collections import Counter
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
@@ -60,7 +61,7 @@ from app.modules.urv.schemas import (
     normalizar_chassi,
 )
 
-FORMULA_DEBITO = "urv_debito = (qv / rm) * max(1, pm / pb)"
+FORMULA_DEBITO = "urv_debito = (qv_periodo / rm) * max(1, pm / pb) - debito_ja_registrado_no_periodo"
 QUATRO_CASAS = Decimal("0.0001")
 _UNICIDADE_CHASSI = "uq_consumo_chassi_chassi"
 
@@ -303,16 +304,78 @@ def _mmv_do_fabricante(session: Session, mmv_id: uuid.UUID, fabricante_id: uuid.
     return mmv
 
 
-def _memoria(qv: int, mmv: Mmv, rm: int, pm: Decimal, pb: Decimal) -> MemoriaCalculo:
+@dataclass(frozen=True)
+class DebitoNoPeriodo:
+    """Débito de um consumo dentro do acumulado do MMV no período. RF-18, art. 3º §§3º e 4º."""
+
+    debito: Decimal
+    qv_periodo: int  # Qv acumulado, contando este consumo
+    ja_debitado: Decimal
+    rm: int
+    pm: Decimal
+    pb: Decimal
+
+
+def debito_no_periodo(
+    session: Session,
+    fabricante_id: uuid.UUID,
+    mmv: Mmv,
+    periodo: str,
+    qv: int,
+    pm: Decimal,
+    *,
+    rm: int,
+    pb: Decimal,
+) -> DebitoNoPeriodo:
+    """Débito do consumo = débito do Qv acumulado do MMV no período menos o já debitado nele.
+
+    RF-18, art. 3º §3º: Qv é a quantidade comercializada do MMV, não o lote que o fabricante
+    escolhe registrar; o arredondamento é um só, sobre o acumulado (achado A3 da revisão).
+    Art. 3º §4º: Pm é um só por MMV e período; Pm diferente é rejeitado (422 PM_DIVERGENTE_NO_PERIODO).
+    RM e Pb ficam os do primeiro consumo do período, para o acumulado ser uma conta só.
+    Para valer sob concorrência, trave a linha do fabricante antes (`travar_empresas`).
+    """
+    anteriores = session.scalars(
+        select(Consumo)
+        .where(Consumo.fabricante_id == fabricante_id, Consumo.mmv_id == mmv.id, Consumo.periodo == periodo)
+        .order_by(Consumo.registrado_em, Consumo.criado_em)
+    ).all()
+    pm = quantizar(pm)
+    if anteriores:
+        primeiro = anteriores[0]
+        if pm != primeiro.pm:
+            raise ErroNegocio(
+                422,
+                "PM_DIVERGENTE_NO_PERIODO",
+                f"O MMV {mmv.codigo} já tem consumo em {periodo} com Pm {primeiro.pm}; o preço médio é um "
+                "só por MMV e período (art. 3º §4º).",
+            )
+        rm, pb = primeiro.rm, primeiro.pb
+    qv_periodo = sum(c.qv for c in anteriores) + qv
+    ja_debitado = sum((c.urv_debito for c in anteriores), Decimal("0.00"))
+    debito = calcular_debito(qv_periodo, rm, pm, pb) - ja_debitado
+    return DebitoNoPeriodo(
+        debito=quantizar(debito),
+        qv_periodo=qv_periodo,
+        ja_debitado=ja_debitado,
+        rm=rm,
+        pm=pm,
+        pb=quantizar(pb),
+    )
+
+
+def _memoria(qv_consumo: int, mmv: Mmv, d: DebitoNoPeriodo) -> MemoriaCalculo:
     return MemoriaCalculo(
         formula=FORMULA_DEBITO,
-        qv=qv,
+        qv=d.qv_periodo,
+        qv_consumo=qv_consumo,
+        debito_ja_registrado=d.ja_debitado,
         nivel=mmv.nivel,
-        rm=rm,
-        pm=quantizar(pm),
-        pb=quantizar(pb),
-        razao_preco=quantizar(Decimal(pm) / Decimal(pb), QUATRO_CASAS),
-        multiplicador=quantizar(multiplicador_preco(pm, pb), QUATRO_CASAS),
+        rm=d.rm,
+        pm=d.pm,
+        pb=d.pb,
+        razao_preco=quantizar(d.pm / d.pb, QUATRO_CASAS),
+        multiplicador=quantizar(multiplicador_preco(d.pm, d.pb), QUATRO_CASAS),
     )
 
 
@@ -325,7 +388,16 @@ def simular_consumo(
     hoje = data_operacao(agora)
     pb = preco_base_vigente(session, hoje)
     rm = rm_vigente(session, mmv.nivel, hoje)  # RF-18, art. 3º §3º; L-01
-    debito = calcular_debito(dados.quantidade, rm, dados.preco_medio, pb)
+    if dados.periodo is not None:  # RF-18, art. 3º §3º: no acumulado do MMV no período
+        calculo = debito_no_periodo(
+            session, fabricante_id, mmv, dados.periodo, dados.quantidade, dados.preco_medio, rm=rm, pb=pb
+        )
+    else:
+        bruto = calcular_debito(dados.quantidade, rm, dados.preco_medio, pb)
+        calculo = DebitoNoPeriodo(
+            bruto, dados.quantidade, Decimal("0.00"), rm, quantizar(dados.preco_medio), quantizar(pb)
+        )
+    debito = calculo.debito
     saldo = saldo_empresa(session, fabricante_id)
     limite = fim_saldo_negativo(session, hoje)
     suficiente = saldo >= debito
@@ -338,7 +410,7 @@ def simular_consumo(
         permitido=permitido,
         regularizar_ate=regularizar_ate(hoje) if (not suficiente and permitido) else None,
         prazo_saldo_negativo=limite,
-        memoria_calculo=_memoria(dados.quantidade, mmv, rm, dados.preco_medio, pb),
+        memoria_calculo=_memoria(dados.quantidade, mmv, calculo),
     )
 
 
@@ -378,9 +450,18 @@ def registrar_consumo(
     if ja_consumidos:
         raise _chassi_ja_consumido(ja_consumidos)
 
-    pb = preco_base_vigente(session, hoje)  # art. 3º §5º
-    rm = rm_vigente(session, mmv.nivel, hoje)  # RF-18, art. 3º §3º; L-01
-    debito = calcular_debito(len(chassis), rm, dados.preco_medio, pb)  # RF-18, art. 3º §3º
+    # RF-18, art. 3º §§3º a 5º: débito no acumulado do MMV no período, com Pm único (A3 da revisão).
+    calculo = debito_no_periodo(
+        session,
+        fabricante_id,
+        mmv,
+        dados.periodo,
+        len(chassis),
+        dados.preco_medio,
+        rm=rm_vigente(session, mmv.nivel, hoje),  # L-01
+        pb=preco_base_vigente(session, hoje),  # art. 3º §5º
+    )
+    debito, rm, pb = calculo.debito, calculo.rm, calculo.pb
 
     saldo = saldo_empresa(session, fabricante_id)
     prazo_regularizacao: date | None = None
@@ -400,8 +481,8 @@ def registrar_consumo(
         periodo=dados.periodo,
         qv=len(chassis),
         rm=rm,
-        pm=quantizar(dados.preco_medio),
-        pb=quantizar(pb),
+        pm=calculo.pm,
+        pb=pb,
         urv_debito=debito,
         saldo_apos=saldo - debito,
         regularizar_ate=prazo_regularizacao,
@@ -419,15 +500,16 @@ def registrar_consumo(
             raise _chassi_ja_consumido([]) from exc
         raise
 
-    session.add(
-        UrvLancamento(
-            empresa_id=fabricante_id,
-            tipo=LancamentoTipo.DEBITO,
-            quantidade=-debito,
-            consumo_id=consumo.id,
-            criado_em=agora,
+    if debito > 0:  # o acumulado só cresce; débito zero não tem lançamento (sinal do livro)
+        session.add(
+            UrvLancamento(
+                empresa_id=fabricante_id,
+                tipo=LancamentoTipo.DEBITO,
+                quantidade=-debito,
+                consumo_id=consumo.id,
+                criado_em=agora,
+            )
         )
-    )
     session.flush()
     registrar_evento(
         session,
@@ -444,6 +526,8 @@ def registrar_consumo(
             "pm": consumo.pm,
             "pb": consumo.pb,
             "urv_debito": debito,
+            "qv_periodo": calculo.qv_periodo,
+            "debito_ja_registrado_no_periodo": calculo.ja_debitado,
             "saldo_antes": saldo,
             "saldo_apos": consumo.saldo_apos,
             "regularizar_ate": prazo_regularizacao,

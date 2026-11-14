@@ -74,12 +74,20 @@ class _PrecoMedio(BaseModel):
     )
 
 
+_PERIODO = r"^[0-9]{4}-(0[1-9]|1[0-2])$"
+
+
 class ConsumoSimular(_PrecoMedio):
-    quantidade: int = Field(gt=0, le=MAX_CHASSIS_POR_CONSUMO, description="Qv: veículos comercializados")
+    quantidade: int = Field(gt=0, le=MAX_CHASSIS_POR_CONSUMO, description="Veículos deste consumo")
+    periodo: str | None = Field(
+        None,
+        pattern=_PERIODO,
+        description="Mês da comercialização. Com ele, o débito soma o já registrado no período (art. 3º §3º)",
+    )
 
 
 class ConsumoCriar(_PrecoMedio):
-    periodo: str = Field(pattern=r"^[0-9]{4}-(0[1-9]|1[0-2])$", description="Mês da comercialização, AAAA-MM")
+    periodo: str = Field(pattern=_PERIODO, description="Mês da comercialização, AAAA-MM")
     chassis: list[str] = Field(min_length=1, max_length=MAX_CHASSIS_POR_CONSUMO)
 
     @field_validator("chassis")
@@ -98,7 +106,9 @@ class MemoriaCalculo(BaseModel):
     """Como o débito foi calculado. RF-18, art. 3º §3º."""
 
     formula: str
-    qv: int
+    qv: int = Field(description="Qv acumulado do MMV no período, contando este consumo (art. 3º §3º)")
+    qv_consumo: int = Field(description="Veículos deste consumo")
+    debito_ja_registrado: Decimal = Field(description="Débito dos consumos anteriores do MMV no período")
     nivel: int
     rm: int
     pm: Decimal

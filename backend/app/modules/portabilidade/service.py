@@ -75,9 +75,8 @@ from app.modules.portabilidade.schemas import (
     VeiculoPortavel,
     VinculoPortavel,
 )
-from app.modules.urv.calculo import calcular_debito
 from app.modules.urv.schemas import normalizar_chassi
-from app.modules.urv.service import saldo_empresa, travar_empresas
+from app.modules.urv.service import debito_no_periodo, saldo_empresa, travar_empresas
 
 TIPOS_GERADORA = (TipoEmpresa.DESMONTADORA, TipoEmpresa.RECICLADORA)
 ESTADOS_COM_CERTIFICADO = (EstadoVeiculo.CERTIFICADO, EstadoVeiculo.ENCERRADO)
@@ -734,11 +733,21 @@ class _Importacao:
             rm = rm_vigente(s, mmv.nivel, data_operacao(c.registrado_em))  # art. 3º §3º; L-01
         except ErroNegocio as exc:
             raise _Rejeicao(exc.codigo, exc.detail) from exc
-        if c.rm != rm:
+        # RF-18, art. 3º §§3º e 4º: o débito é refeito no acumulado do MMV no período, como no
+        # registro local (achado A3 da revisão); Pm diferente no mesmo período é rejeitado.
+        try:
+            calculo = debito_no_periodo(s, empresa.id, mmv, c.periodo, c.qv, c.pm, rm=rm, pb=c.pb)
+        except ErroNegocio as exc:
+            raise _Rejeicao(exc.codigo, exc.detail) from exc
+        if c.rm != calculo.rm:
             raise _Rejeicao("RM_DIVERGENTE", f"RM {c.rm} não corresponde ao nível {mmv.nivel} do MMV.")
-        if calcular_debito(c.qv, c.rm, c.pm, c.pb) != c.urv_debito:  # RF-18, art. 3º §3º
+        if c.pb != calculo.pb:
+            raise _Rejeicao("PB_DIVERGENTE", f"Pb {c.pb} difere do Pb {calculo.pb} do período {c.periodo}.")
+        if calculo.debito != c.urv_debito:
             raise _Rejeicao(
-                "DEBITO_DIVERGENTE", "O débito informado não confere com a fórmula do art. 3º §3º."
+                "DEBITO_DIVERGENTE",
+                f"O débito informado ({c.urv_debito}) não confere com o do art. 3º §3º no acumulado do "
+                f"MMV no período ({calculo.debito}).",
             )
         # RF-21, arts. 28 e 29: um chassi novo consome uma única vez, em qualquer plataforma.
         ja = s.scalars(
@@ -767,15 +776,16 @@ class _Importacao:
         )
         s.add(consumo)
         s.flush()
-        s.add(
-            UrvLancamento(
-                empresa_id=empresa.id,
-                tipo=LancamentoTipo.DEBITO,
-                quantidade=-c.urv_debito,
-                consumo_id=consumo.id,
-                criado_em=c.registrado_em,
+        if c.urv_debito > 0:  # como no registro local: débito zero não tem lançamento
+            s.add(
+                UrvLancamento(
+                    empresa_id=empresa.id,
+                    tipo=LancamentoTipo.DEBITO,
+                    quantidade=-c.urv_debito,
+                    consumo_id=consumo.id,
+                    criado_em=c.registrado_em,
+                )
             )
-        )
         s.flush()
         self.evento(
             "CONSUMO_IMPORTADO",

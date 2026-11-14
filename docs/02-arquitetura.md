@@ -98,10 +98,11 @@ A falha das pré-condições 1 a 7 devolve 422 `PENDENCIAS_CERTIFICADO` com a li
 ### Consumo (RF-18, RF-19, RF-20)
 
 ```
-urv_debito = (qv / rm) * max(1, pm / pb)      # quantizado em 0.01, ROUND_HALF_UP
+debito_periodo(qv) = (qv / rm) * max(1, pm / pb)       # quantizado em 0.01, ROUND_HALF_UP
+urv_debito = debito_periodo(qv_periodo) - ja_debitado  # qv_periodo inclui este consumo
 ```
 
-- `qv` = quantidade de chassis informados. `rm` = parâmetro `RM_NIVEL_1` ou `RM_NIVEL_2` vigente na data (5 ou 10, art. 3º §3º; L-01). `pb` = 150000.00 (configuração com vigência). `pm` é informado pelo fabricante no MVP.
+- `qv_periodo` = soma dos chassis do fabricante no MMV e no período, contando este consumo; `ja_debitado` = soma dos `urv_debito` anteriores do mesmo MMV e período (art. 3º §3º; achado A3 da revisão). `consumo.qv` continua sendo o número de chassis do próprio consumo. O cálculo trava a linha do fabricante antes de ler os consumos anteriores. Pm diferente do primeiro consumo do período é 422 `PM_DIVERGENTE_NO_PERIODO` (art. 3º §4º); RM e Pb são os do primeiro consumo do período. `rm` = parâmetro `RM_NIVEL_1` ou `RM_NIVEL_2` vigente na data (5 ou 10, art. 3º §3º; L-01). `pb` = 150000.00 (configuração com vigência). `pm` é informado pelo fabricante no MVP.
 - Rejeita se o MMV não está `ATIVO`, se a data é anterior a `efeitos_a_partir_de`, ou se algum chassi já foi consumido.
 - Saldo: se `saldo < urv_debito` e a data é posterior a 31/12/2027, rejeita com 409. Até 31/12/2027, aceita e grava `regularizar_ate` = último dia do terceiro mês seguinte ao do registro.
 - `prazo_reporte` = décimo dia útil do mês seguinte ao `periodo`. Registro posterior é aceito e marcado como fora do prazo.

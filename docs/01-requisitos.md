@@ -55,7 +55,8 @@ Origem: Portaria GM/MDIC nº 325, de 6 de novembro de 2026 (`portaria-325-2026.p
 | Tema | Premissa |
 | --- | --- |
 | RM por nível | Parâmetro com vigência em `config_parametro` (`RM_NIVEL_1`, `RM_NIVEL_2`), não constante no código. O seed grava nível 1 = 10 e nível 2 = 5, a leitura anterior à revisão, **sem conferência contra o decreto**: o texto dos itens 16 a 18 do Anexo III do Decreto 12.435/2025 ainda não está em `docs/` (lacuna L-01, aberta). A portaria, lida pelo art. 33 junto com o art. 3º §3º, sugere o inverso (nível 1 = item 17 = RM 5). Trocar a leitura é gravar nova vigência dos dois parâmetros, sem mudar código |
-| Débito de URV | Decimal com duas casas, `ROUND_HALF_UP`, sem arredondar para inteiro |
+| Débito de URV | Decimal com duas casas, `ROUND_HALF_UP`, sem arredondar para inteiro. Qv é a quantidade comercializada do MMV no mês (art. 3º §3º; art. 7º): o débito é calculado no acumulado por fabricante, MMV e período, arredondado uma vez, e cada consumo debita a diferença entre o débito do Qv acumulado e o já debitado no período. Registrar um chassi por vez não reduz o débito (achado A3 da revisão) |
+| Pm, RM e Pb no período | Pm é um só por MMV e período (art. 3º §4º): consumo com Pm diferente do primeiro do período é rejeitado (422 `PM_DIVERGENTE_NO_PERIODO`). RM e Pb ficam os do primeiro consumo do período, para o acumulado ser uma conta só, mesmo que a vigência mude no meio do mês |
 | Certificado | Um por chassi |
 | Crédito | Indivisível; transferido inteiro a um único fabricante |
 | Titular do crédito | A empresa que emite o certificado |
