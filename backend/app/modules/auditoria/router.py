@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.db import obter_sessao
@@ -23,6 +23,11 @@ def listar_eventos(
     entidade: str | None = Query(None),
     entidade_id: uuid.UUID | None = Query(None),
     tipo: str | None = Query(None),
+    veiculo_id: uuid.UUID | None = Query(
+        None,
+        description="Eventos do veículo e dos registros ligados a ele: etapas, anexos, peças, pesagens, "
+        "DMR, laudo, certificado e crédito gerado",
+    ),
     pag: Paginacao = Depends(paginacao),
     session: Session = Depends(obter_sessao),
     _: Usuario = Depends(_leitor),
@@ -34,6 +39,15 @@ def listar_eventos(
         stmt = stmt.where(EventoAuditoria.entidade_id == entidade_id)
     if tipo:
         stmt = stmt.where(EventoAuditoria.tipo == tipo)
+    if veiculo_id:
+        # RF-23, art. 24 V: o dossiê do veículo na trilha. Os eventos dos registros ligados a ele
+        # têm entidade própria e levam o `veiculo_id` no payload (lacuna L-13, resolvida).
+        stmt = stmt.where(
+            or_(
+                and_(EventoAuditoria.entidade == "veiculo", EventoAuditoria.entidade_id == veiculo_id),
+                EventoAuditoria.payload["veiculo_id"].astext == str(veiculo_id),
+            )
+        )
     itens, total = paginar(session, stmt, pag)
     return Pagina[EventoSaida](itens=[EventoSaida.model_validate(e) for e in itens], total=total)
 

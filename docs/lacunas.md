@@ -16,7 +16,6 @@ Uma linha por lacuna: o que falta, por quê, e o artigo. Requisitos marcados "N�
 | L-10 | Peça não reutilizável enviada a remanufatura ou recondicionamento também precisa estar marcada como descaracterizada para o certificado sair. | A pré-condição 5 da arquitetura exige descaracterização de toda peça não reutilizável, sem distinguir o destino do Anexo III 10.d. | Anexo III 7 e 10 | backend-fluxo |
 | L-11 | A data da etiqueta da peça é a do registro da peça na plataforma. | A portaria pede "data" na etiqueta sem dizer qual (entrada, desmontagem ou etiquetagem). | Anexo III 8 | backend-fluxo |
 | L-12 | Anexos não podem ser removidos nem substituídos, e não há antivírus: o tipo do arquivo é conferido só pelos primeiros bytes. | Fora do escopo do MVP. | Art. 20 VI | backend-fluxo |
-| L-13 | `GET /auditoria/eventos?entidade_id=<veículo>` só acha os eventos cuja entidade é o próprio veículo (recebido, classificado, encerrado). Etapas, anexos, peças, pesagens, DMR, laudo e certificado são eventos de outras entidades, com o `veiculo_id` só no payload; a lista "eventos da trilha ligados ao veículo" da busca do auditor mostra, por isso, só esses poucos. A linha do tempo em si é montada pelos registros e fica completa. | Filtrar por `payload.veiculo_id` seria rota ou parâmetro novo no contrato, não pedido por nenhum agente; achado no roteiro de demonstração da integração. | Art. 24 V; art. 20 V | integração |
 | L-URV-01 | O `periodo` do consumo não é conferido: aceita mês anterior ao início de efeitos do MMV e mês futuro. Só a data do registro é comparada com `efeitos_a_partir_de`. | A arquitetura define a regra pela data do registro; o período serve só ao prazo de reporte. | Art. 5º §2º; art. 7º, parágrafo único | backend-urv |
 | L-URV-02 | O preço médio (Pm) é o declarado pelo fabricante. Não é conferido com as notas fiscais de saída dos três meses anteriores nem com o preço público sugerido. | Depende de integração com nota fiscal, simulada no MVP. | Art. 3º §4º | backend-urv |
 | L-URV-03 | O percentual de reciclabilidade do MMV aceita qualquer valor de 0 a 100. O mínimo exigido para os níveis 1 e 2 não é conferido. | O critério está no subitem I do item 6 da Seção B.1 do Anexo III do Decreto 12.435/2025, que não está em `docs/`. | Art. 5º III e §1º | backend-urv |
@@ -26,6 +25,14 @@ Uma linha por lacuna: o que falta, por quê, e o artigo. Requisitos marcados "N�
 | L-URV-07 | A importação só aceita veículo com laudo, certificado e crédito. Veículo ainda em processamento é rejeitado (`VEICULO_SEM_CERTIFICADO`), e os usuários do arquivo não são criados. | Continuar um processamento iniciado em outra plataforma exige as evidências (L-URV-06); usuários vêm só do seed (L-02). | Art. 22 II | backend-urv |
 | L-URV-08 | O crédito recebido por um fabricante só é importado se o crédito já existe aqui, isto é, se a geradora também migrou. Sem isso o item é rejeitado (`CREDITO_NAO_ENCONTRADO`) e o saldo local pode ficar diferente do da origem; a resposta informa em `saldo_confere`. | O crédito depende do certificado e do veículo, que pertencem à geradora. Criar um crédito sem dossiê abriria caminho para saldo sem lastro. | Art. 22 V; art. 28 | backend-urv |
 | L-URV-09 | A reconciliação entre plataformas acontece só na importação. Um chassi creditado ou consumido em outra plataforma, e nunca importado, não é detectado. O `hash_conteudo` do arquivo detecta corrupção, mas não prova a origem: não há assinatura entre plataformas. | Os parâmetros mínimos de interoperabilidade ainda serão divulgados pelo MDIC; o formato é próprio (premissa em `01-requisitos.md`). | Art. 22 III, V e parágrafo único; arts. 28 e 29 | backend-urv |
+
+## Lacunas resolvidas
+
+O número não é reaproveitado.
+
+| # | Lacuna | Resolução |
+| --- | --- | --- |
+| L-13 | `GET /auditoria/eventos?entidade_id=<veículo>` só achava os eventos cuja entidade é o próprio veículo; etapas, anexos, peças, pesagens, DMR, laudo e certificado têm entidade própria e levam o `veiculo_id` no payload. Achada no roteiro de demonstração da integração (art. 24 V; art. 20 V). | `GET /auditoria/eventos?veiculo_id=` devolve os eventos do veículo e os dos registros ligados a ele, em ordem de sequência. A busca do auditor no frontend usa esse filtro. Teste em `tests/unit/fluxo/test_trilha_do_veiculo.py`. |
 
 ## Divergências entre a portaria e os documentos, já resolvidas
 

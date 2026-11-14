@@ -23,7 +23,7 @@ Todo valor `Decimal` (URV, fator, preço, peso, percentual) trafega como string 
 | `POST /vinculos` | ADMIN | `geradora_id`, `fabricante_id` | Vinculo |
 | `GET /vinculos` | todos (filtrado pela empresa) | | Lista de Vinculo |
 | `PATCH /vinculos/{id}` | ADMIN | `ativo` | Vinculo |
-| `GET /auditoria/eventos` | AUDITOR, ADMIN | `?entidade=&entidade_id=&tipo=` | Lista de Evento |
+| `GET /auditoria/eventos` | AUDITOR, ADMIN | `?entidade=&entidade_id=&tipo=&veiculo_id=` | Lista de Evento, em ordem de sequência. `veiculo_id` traz os eventos do próprio veículo e os dos registros ligados a ele (etapas, anexos, peças, pesagens, DMR, laudo, certificado e crédito gerado), que levam o `veiculo_id` no payload (L-13) |
 | `GET /auditoria/verificar` | AUDITOR, ADMIN | | `integra`, `total`, `primeira_quebra` |
 | `GET /configuracao/fatores` | todos | | `{itens: [{tipo, fator, vigente_desde}], total, preco_base}` |
 
