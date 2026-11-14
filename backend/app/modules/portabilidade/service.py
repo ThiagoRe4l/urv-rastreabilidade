@@ -30,6 +30,8 @@ from app.core.decimais import quantizar
 from app.core.erros import ErroNegocio, NaoEncontrado
 from app.core.relogio import data_operacao
 from app.models import (
+    Anexo,
+    AnexoTipo,
     Certificado,
     Consumo,
     ConsumoChassi,
@@ -78,6 +80,7 @@ from app.modules.portabilidade.schemas import (
 )
 from app.modules.urv.schemas import normalizar_chassi
 from app.modules.urv.service import debito_no_periodo, saldo_empresa, travar_empresas
+from app.modules.veiculos.schemas import VIN
 
 TIPOS_GERADORA = (TipoEmpresa.DESMONTADORA, TipoEmpresa.RECICLADORA)
 ESTADOS_COM_CERTIFICADO = (EstadoVeiculo.CERTIFICADO, EstadoVeiculo.ENCERRADO)
@@ -422,6 +425,25 @@ class _Importacao:
                 )
             raise _Rejeicao(
                 "CHASSI_JA_REGISTRADO", f"O chassi {chassi} já está em processamento nesta plataforma."
+            )
+
+        # A7 da revisão: a mesma identidade que a recepção exige vale para o que vem de fora.
+        if not VIN.fullmatch(chassi):
+            raise _Rejeicao("CHASSI_INVALIDO", f"O chassi {chassi} não é VIN de 17 caracteres.")
+        if v.renavam and s.scalar(select(Veiculo.id).where(Veiculo.renavam == v.renavam)):
+            raise _Rejeicao("RENAVAM_DUPLICADO", f"O Renavam {v.renavam} já está em outro veículo aqui.")
+        if v.certidao_baixa_numero and s.scalar(
+            select(Veiculo.id).where(Veiculo.certidao_baixa_numero == v.certidao_baixa_numero)
+        ):
+            raise _Rejeicao("CERTIDAO_BAIXA_DUPLICADA", "A certidão de baixa já está em outro veículo aqui.")
+        evidencias = [a.sha256 for a in v.anexos if a.tipo == AnexoTipo.EVIDENCIA_CLASSIFICACAO]
+        if evidencias and s.scalar(
+            select(Anexo.id).where(
+                Anexo.tipo == AnexoTipo.EVIDENCIA_CLASSIFICACAO, Anexo.sha256.in_(evidencias)
+            )
+        ):
+            raise _Rejeicao(
+                "EVIDENCIA_REUTILIZADA", "A evidência de classificação já é de outro veículo aqui."
             )
 
         if cert is None:

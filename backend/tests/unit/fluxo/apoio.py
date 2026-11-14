@@ -40,17 +40,23 @@ PASSOS = (
 )
 
 
+def pdf_unico() -> bytes:
+    """PDF com conteúdo único: a evidência de classificação não se repete entre veículos (A7)."""
+    return PDF + f"%{uuid.uuid4().hex}\n".encode()
+
+
 def dados_veiculo(**mudancas) -> dict:
+    # Renavam e certidão de baixa são únicos (A7 da revisão): sorteados a cada veículo.
     return {
         "chassi": CHASSI,
         "placa": "ABC1D23",
-        "renavam": "12345678901",
+        "renavam": f"{uuid.uuid4().int % 10**11:011d}",
         "data_entrada": "2026-11-10",
         "tipo": "SINISTRADO_PEQUENA_MEDIA",
         "origem_aquisicao": "LEILAO_SEGURADORA",
         "documento_entrada_tipo": "NF_ENTRADA",
         "documento_entrada_numero": "NF-000123",
-        "certidao_baixa_numero": "CB-2026-0001",
+        "certidao_baixa_numero": f"CB-{uuid.uuid4().hex[:12].upper()}",
         "peso_entrada_kg": "1180.500",
         "sem_viabilidade_desmontagem": False,
         **mudancas,
@@ -136,7 +142,12 @@ def executar_passos(client, headers, veiculo_id, pular: tuple[str, ...] = ()) ->
             case "evidencia_classificacao":
                 ok(
                     anexar(
-                        client, headers, veiculo_id, "EVIDENCIA_CLASSIFICACAO", conteudo=PDF, nome="laudo.pdf"
+                        client,
+                        headers,
+                        veiculo_id,
+                        "EVIDENCIA_CLASSIFICACAO",
+                        conteudo=pdf_unico(),
+                        nome="laudo.pdf",
                     )
                 )
             case "etapa_descontaminacao":

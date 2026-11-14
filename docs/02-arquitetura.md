@@ -30,7 +30,7 @@ Todas as tabelas têm `id` (UUID) e `criado_em`. Tipos monetários e de URV: `NU
 | `usuario` | `email` único, `senha_hash`, `nome`, `papel`, `empresa_id` (nulo para ADMIN e AUDITOR) | |
 | `vinculo` | `geradora_id`, `fabricante_id`, `ativo` | Par único |
 | `mmv` | `fabricante_id`, `codigo`, `ncm`, `nivel` (1 ou 2), `percentual_reciclabilidade`, `ja_comercializado`, `efeitos_a_partir_de`, `status` (ATIVO, RETIRADO) | `(fabricante_id, codigo)` único |
-| `veiculo` | `empresa_id`, `chassi` único, `placa`, `renavam`, `data_entrada`, `tipo_declarado`, `tipo` (o efetivo, usado no fator), `origem_aquisicao`, `documento_entrada_tipo` (NF_ENTRADA, AUTO_ARREMATACAO), `documento_entrada_numero`, `certidao_baixa_numero`, `peso_entrada_kg`, `sem_viabilidade_desmontagem`, `estado` | Veículo em fim de vida |
+| `veiculo` | `empresa_id`, `chassi` único (VIN de 17 caracteres), `placa`, `renavam`, `data_entrada`, `tipo_declarado`, `tipo` (o efetivo, usado no fator), `origem_aquisicao`, `documento_entrada_tipo` (NF_ENTRADA, AUTO_ARREMATACAO), `documento_entrada_numero`, `certidao_baixa_numero`, `peso_entrada_kg`, `sem_viabilidade_desmontagem`, `estado` | Veículo em fim de vida. `renavam` e `certidao_baixa_numero` únicos (0003; art. 18 II; art. 21 III) |
 | `etapa` | `veiculo_id`, `tipo` (RECEPCAO, DESCONTAMINACAO, DESMONTAGEM, DESTRUICAO, DESTINACAO), `iniciada_em`, `concluida_em`, `observacoes` | `(veiculo_id, tipo)` único |
 | `anexo` | `veiculo_id`, `etapa_tipo`, `tipo` (FOTO, DOCUMENTO_ENTRADA, CERTIDAO_BAIXA, EVIDENCIA_CLASSIFICACAO), `caminho`, `sha256`, `enviado_por` | Arquivo em volume local |
 | `peca` | `veiculo_id`, `nome`, `descricao`, `classificacao` (REUTILIZAVEL, NAO_REUTILIZAVEL), `codigo_rastreio` único, `condicao` (USADA, REMANUFATURADA), `destino` (ESTOQUE, REVENDA, EXPORTACAO, REMANUFATURA, RECONDICIONAMENTO, RECICLAGEM, DESCARTE), `descaracterizada` | Reutilizável exige `codigo_rastreio`; não reutilizável exige `descaracterizada` |
@@ -65,7 +65,7 @@ Toda data de regra de negócio é a data civil de Brasília (UTC-3 fixo), dada p
 | `SUCATA_MOTOR_INSERVIVEL` | 0.68 |
 | `SUCATA_INSERVIVEL` | 0.38 |
 
-Todo tipo diferente de `SUCATA_INSERVIVEL`, inclusive `LICENCIADO_RODAGEM`, exige anexo `EVIDENCIA_CLASSIFICACAO` (art. 6º I c). Sem ele, o veículo é gravado como `SUCATA_INSERVIVEL`, com `tipo_declarado` preservado; ao anexar a evidência, o `tipo_declarado` é aplicado. É o art. 2º §5º estendido ao veículo licenciado (premissa em `01-requisitos.md`). Os fatores ficam em uma tabela de configuração com vigência, porque podem ser revistos (art. 3º §6º).
+Todo tipo diferente de `SUCATA_INSERVIVEL`, inclusive `LICENCIADO_RODAGEM`, exige anexo `EVIDENCIA_CLASSIFICACAO` (art. 6º I c), e o mesmo arquivo (mesmo `sha256`) não serve de evidência a dois veículos (409 `EVIDENCIA_REUTILIZADA`; art. 21 III). Sem ele, o veículo é gravado como `SUCATA_INSERVIVEL`, com `tipo_declarado` preservado; ao anexar a evidência, o `tipo_declarado` é aplicado. É o art. 2º §5º estendido ao veículo licenciado (premissa em `01-requisitos.md`). Os fatores ficam em uma tabela de configuração com vigência, porque podem ser revistos (art. 3º §6º).
 
 ### Estados do veículo
 

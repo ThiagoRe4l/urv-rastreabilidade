@@ -23,6 +23,9 @@ from app.models import (
     TipoVeiculo,
 )
 
+# VIN: 17 caracteres, sem I, O e Q (ABNT NBR 6066 / ISO 3779), a mesma regra do consumo.
+VIN = re.compile(r"^[A-HJ-NPR-Z0-9]{17}$")
+
 
 def normalizar_chassi(valor: str) -> str:
     return re.sub(r"[\s.-]", "", valor or "").upper()
@@ -31,7 +34,7 @@ def normalizar_chassi(valor: str) -> str:
 class VeiculoCriar(BaseModel):
     """Recepção do veículo. RF-06, art. 6º I; art. 18 III; Anexo III 14.a."""
 
-    chassi: str = Field(description="Só letras e dígitos; gravado em maiúsculas")
+    chassi: str = Field(description="VIN de 17 caracteres, sem I, O e Q; gravado em maiúsculas")
     placa: str
     renavam: str
     data_entrada: date
@@ -47,8 +50,10 @@ class VeiculoCriar(BaseModel):
     @classmethod
     def _chassi(cls, v: str) -> str:
         v = normalizar_chassi(v)
-        if not re.fullmatch(r"[A-Z0-9]{6,30}", v):
-            raise ValueError("chassi deve ter de 6 a 30 letras ou dígitos")
+        # RF-06 e RF-21, arts. 28 e 29: a reconciliação entre plataformas compara o chassi; um
+        # caractere a mais faria dois veículos do mesmo chassi (A7 da revisão).
+        if not VIN.fullmatch(v):
+            raise ValueError("chassi deve ser VIN de 17 caracteres, sem I, O e Q")
         return v
 
     @field_validator("placa")

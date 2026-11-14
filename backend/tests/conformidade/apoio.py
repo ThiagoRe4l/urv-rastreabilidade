@@ -55,6 +55,12 @@ PDF = (
     b"2 0 obj<</Type/Pages/Count 0/Kids[]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n"
 )
 
+
+def pdf_unico() -> bytes:
+    """PDF mínimo com conteúdo único: a evidência de classificação não se repete entre veículos (A7)."""
+    return PDF + f"%{uuid.uuid4().hex}\n".encode()
+
+
 PESAGENS_PADRAO = (
     ("FERROSO", "RECICLAGEM", "800.000"),
     ("NAO_FERROSO", "RECICLAGEM", "100.000"),
@@ -199,13 +205,13 @@ def dados_veiculo(**alteracoes: Any) -> dict[str, Any]:
     corpo: dict[str, Any] = {
         "chassi": novo_chassi(),
         "placa": "QAT" + f"{random.randint(0, 9)}A{random.randint(10, 99)}",  # noqa: S311
-        "renavam": f"1{random.randint(0, 999999999):09d}0",  # noqa: S311
+        "renavam": f"{uuid.uuid4().int % 10**11:011d}",  # único por veículo (A7)
         "data_entrada": date.today().isoformat(),
         "tipo": "SUCATA_INSERVIVEL",
         "origem_aquisicao": "COMPRA_DIRETA",
         "documento_entrada_tipo": "NF_ENTRADA",
         "documento_entrada_numero": "NF-1001",
-        "certidao_baixa_numero": "CB-2001",
+        "certidao_baixa_numero": f"CB-{uuid.uuid4().hex[:12].upper()}",  # única por veículo (A7)
         "peso_entrada_kg": "1000.000",  # PESAGENS_PADRAO pesa o veículo inteiro
         "sem_viabilidade_desmontagem": False,
     }
@@ -229,9 +235,10 @@ def anexar(
     mime: str | None = None,
 ) -> Response:
     foto = tipo == "FOTO"
+    padrao = PNG if foto else (pdf_unico() if tipo == "EVIDENCIA_CLASSIFICACAO" else PDF)
     arquivo = (
         nome or ("foto.png" if foto else "documento.pdf"),
-        conteudo if conteudo is not None else (PNG if foto else PDF),
+        conteudo if conteudo is not None else padrao,
         mime or ("image/png" if foto else "application/pdf"),
     )
     return api.post(

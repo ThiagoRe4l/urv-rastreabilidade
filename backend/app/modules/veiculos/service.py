@@ -110,6 +110,13 @@ def criar_veiculo(session: Session, usuario: Usuario, dados: VeiculoCriar) -> Ve
     # RF-21, arts. 28 e 29: um chassi em fim de vida entra uma única vez.
     if session.scalar(select(Veiculo.id).where(Veiculo.chassi == dados.chassi)):
         raise ErroNegocio(409, "CHASSI_DUPLICADO", "Já existe veículo registrado com este chassi.")
+    # RF-06, art. 18 II; art. 21 III: Renavam e certidão de baixa identificam um veículo só (A7).
+    if session.scalar(select(Veiculo.id).where(Veiculo.renavam == dados.renavam)):
+        raise ErroNegocio(409, "RENAVAM_DUPLICADO", "Já existe veículo registrado com este Renavam.")
+    if session.scalar(select(Veiculo.id).where(Veiculo.certidao_baixa_numero == dados.certidao_baixa_numero)):
+        raise ErroNegocio(
+            409, "CERTIDAO_BAIXA_DUPLICADA", "Já existe veículo registrado com esta certidão de baixa."
+        )
 
     veiculo = Veiculo(
         empresa_id=usuario.empresa_id,
@@ -256,6 +263,7 @@ def anexar(
     if detectado is None:
         raise ErroNegocio(415, "TIPO_DE_ARQUIVO_NAO_PERMITIDO", "Envie imagem (JPEG, PNG, WebP) ou PDF.")
     content_type, extensao = detectado
+    sha256 = hashlib.sha256(conteudo).hexdigest()
     if tipo == AnexoTipo.FOTO:
         if content_type not in _IMAGENS:
             raise ErroNegocio(415, "TIPO_DE_ARQUIVO_NAO_PERMITIDO", "Foto precisa ser imagem.")
@@ -273,6 +281,20 @@ def anexar(
             "O certificado já foi emitido com o tipo atual; a classificação não pode mais mudar.",
         )
 
+    # RF-07, RNF-07, art. 21 III: a evidência de um veículo não serve para outro (A7 da revisão).
+    if tipo == AnexoTipo.EVIDENCIA_CLASSIFICACAO and session.scalar(
+        select(Anexo.id).where(
+            Anexo.tipo == AnexoTipo.EVIDENCIA_CLASSIFICACAO,
+            Anexo.sha256 == sha256,
+            Anexo.veiculo_id != veiculo.id,
+        )
+    ):
+        raise ErroNegocio(
+            409,
+            "EVIDENCIA_REUTILIZADA",
+            "Este arquivo já é a evidência de classificação de outro veículo (art. 6º I c; art. 21 III).",
+        )
+
     relativo = PurePosixPath(str(veiculo.id)) / f"{uuid.uuid4().hex}{extensao}"
     destino = _raiz_uploads() / relativo
     destino.parent.mkdir(parents=True, exist_ok=True)
@@ -283,7 +305,7 @@ def anexar(
         etapa_tipo=etapa_tipo,
         tipo=tipo,
         caminho=str(relativo),
-        sha256=hashlib.sha256(conteudo).hexdigest(),
+        sha256=sha256,
         nome_original=(Path(nome_original).name[:255] or None) if nome_original else None,
         content_type=content_type,
         tamanho_bytes=len(conteudo),

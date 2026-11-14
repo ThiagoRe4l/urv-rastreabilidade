@@ -85,10 +85,47 @@ def test_chassi_duplicado(client, h, h_outra) -> None:
         assert r.json()["codigo"] == "CHASSI_DUPLICADO"
 
 
+def test_renavam_e_certidao_de_baixa_sao_de_um_veiculo_so(client, h, h_outra) -> None:
+    """RF-06 e RF-21, art. 18 II; art. 21 III: dois chassis não dividem a identidade (A7 da revisão)."""
+    v = criar_veiculo(client, h)
+    for headers in (h, h_outra):
+        for campo, codigo in (
+            ("renavam", "RENAVAM_DUPLICADO"),
+            ("certidao_baixa_numero", "CERTIDAO_BAIXA_DUPLICADA"),
+        ):
+            corpo = dados_veiculo(chassi="9BWZZZ377VT009999", **{campo: v[campo]})
+            r = client.post(VEICULOS, json=corpo, headers=headers)
+            assert (r.status_code, r.json()["codigo"]) == (409, codigo)
+
+
+def test_evidencia_de_classificacao_nao_serve_a_dois_veiculos(client, h, pasta_uploads) -> None:
+    """RF-07, RNF-07, art. 21 III: o mesmo arquivo como evidência de outro chassi é recusado (A7)."""
+    evidencia = PDF + b"%vistoria-unica\n"
+    a = criar_veiculo(client, h)
+    b = criar_veiculo(client, h, chassi="9BWZZZ377VT009999")
+    assert (
+        anexar(client, h, a["id"], "EVIDENCIA_CLASSIFICACAO", conteudo=evidencia, nome="v.pdf").status_code
+        == 201
+    )
+    # No mesmo veículo, reenviar o arquivo é permitido.
+    assert (
+        anexar(client, h, a["id"], "EVIDENCIA_CLASSIFICACAO", conteudo=evidencia, nome="v.pdf").status_code
+        == 201
+    )
+    r = anexar(client, h, b["id"], "EVIDENCIA_CLASSIFICACAO", conteudo=evidencia, nome="v.pdf")
+    assert (r.status_code, r.json()["codigo"]) == (409, "EVIDENCIA_REUTILIZADA")
+    assert client.get(f"{VEICULOS}/{b['id']}", headers=h).json()["tipo"] == "SUCATA_INSERVIVEL"
+    assert len(list(pasta_uploads.rglob("*.pdf"))) == 2  # o recusado não fica em disco
+
+
 @pytest.mark.parametrize(
     "mudanca",
     [
         {"chassi": "abc"},
+        {"chassi": "9BWZZZ377VT0042510"},  # 18 caracteres (A7: chassi é VIN)
+        {"chassi": "9BWZZZ377VT00425"},  # 16
+        {"chassi": "9BWZZZ377VT00425I"},  # VIN não tem I, O nem Q
+        {"chassi": "ABC123"},
         {"placa": "AB"},
         {"renavam": "12ab"},
         {"data_entrada": "2999-01-01"},

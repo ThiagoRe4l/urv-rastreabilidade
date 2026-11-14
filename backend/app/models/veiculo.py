@@ -40,7 +40,8 @@ class Veiculo(ComId, Base):
     empresa_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("empresa.id"), index=True)
     chassi: Mapped[str] = mapped_column(String(30), unique=True)  # RF-21
     placa: Mapped[str | None] = mapped_column(String(10))
-    renavam: Mapped[str | None] = mapped_column(String(11))
+    # Únicos: um Renavam e uma certidão de baixa por veículo (art. 18 II; art. 21 III; A7 da revisão).
+    renavam: Mapped[str | None] = mapped_column(String(11), unique=True)
     data_entrada: Mapped[date] = mapped_column(Date)
     tipo_declarado: Mapped[TipoVeiculo] = mapped_column(coluna_enum(TipoVeiculo, "tipo_declarado"))
     # Tipo efetivo, usado no fator. SUCATA_INSERVIVEL sem evidência de classificação (art. 2º §5º).
@@ -52,7 +53,7 @@ class Veiculo(ComId, Base):
         coluna_enum(DocumentoEntradaTipo, "documento_entrada_tipo")
     )
     documento_entrada_numero: Mapped[str] = mapped_column(String(60))
-    certidao_baixa_numero: Mapped[str | None] = mapped_column(String(60))
+    certidao_baixa_numero: Mapped[str | None] = mapped_column(String(60), unique=True)
     peso_entrada_kg: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
     sem_viabilidade_desmontagem: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     estado: Mapped[EstadoVeiculo] = mapped_column(

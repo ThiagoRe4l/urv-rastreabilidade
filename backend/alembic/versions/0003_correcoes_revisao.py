@@ -9,6 +9,9 @@
   RNF-01, art. 20 V; art. 24 I).
 - A5: `certificado.importado` e `urv_credito.importado` marcam o que veio de outra plataforma
   pela portabilidade (art. 22).
+- A7: `veiculo.renavam` e `veiculo.certidao_baixa_numero` únicos (art. 18 II; art. 21 III). Um
+  banco com veículos repetidos nessas colunas não migra: a duplicidade precisa ser resolvida à mão,
+  porque não há como saber qual dos registros é o legítimo.
 
 Revision ID: 0003
 Revises: 0002
@@ -58,6 +61,10 @@ def upgrade() -> None:
     for tabela in ("certificado", "urv_credito"):
         op.add_column(tabela, sa.Column("importado", sa.Boolean(), server_default="false", nullable=False))
 
+    # A7, RF-06 e RF-21, art. 18 II; art. 21 III: Renavam e certidão de baixa são de um veículo só.
+    op.create_unique_constraint(op.f("uq_veiculo_renavam"), "veiculo", ["renavam"])
+    op.create_unique_constraint(op.f("uq_veiculo_certidao_baixa_numero"), "veiculo", ["certidao_baixa_numero"])
+
     # A4, RF-22, art. 20 V: o que o certificado e o laudo atestam não muda depois de gravado.
     for tabela in TABELAS_IMUTAVEIS:
         op.execute(
@@ -88,6 +95,8 @@ def downgrade() -> None:
     for tabela in TABELAS_IMUTAVEIS:
         op.execute(f"DROP TRIGGER IF EXISTS trg_{tabela}_sem_truncate ON {tabela}")
         op.execute(f"DROP TRIGGER IF EXISTS trg_{tabela}_imutavel ON {tabela}")
+    op.drop_constraint(op.f("uq_veiculo_certidao_baixa_numero"), "veiculo", type_="unique")
+    op.drop_constraint(op.f("uq_veiculo_renavam"), "veiculo", type_="unique")
     for tabela in ("certificado", "urv_credito"):
         op.drop_column(tabela, "importado")
     op.execute("DELETE FROM config_parametro WHERE chave IN ('RM_NIVEL_1', 'RM_NIVEL_2')")

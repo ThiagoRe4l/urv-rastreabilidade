@@ -26,7 +26,7 @@ Origem: Portaria GM/MDIC nº 325, de 6 de novembro de 2026 (`portaria-325-2026.p
 | RF-18 | Consumo por chassi de veículo novo, com cálculo do débito por MMV | Art. 3º §3º; art. 6º II; art. 8º III | Sim |
 | RF-19 | Bloqueio de saldo negativo; exceção até 31/12/2027 com regularização até o último dia do terceiro mês seguinte | Art. 8º III e §1º | Sim |
 | RF-20 | Prazo de reporte do consumo: décimo dia útil do mês seguinte | Art. 7º, parágrafo único | Sim, como alerta |
-| RF-21 | Unicidade: um chassi em fim de vida gera crédito uma vez; um chassi novo consome uma vez | Arts. 28 e 29 | Sim |
+| RF-21 | Unicidade: um chassi em fim de vida gera crédito uma vez; um chassi novo consome uma vez. O chassi em fim de vida é VIN, e Renavam e certidão de baixa não se repetem entre chassis | Arts. 28 e 29; art. 18 II | Sim |
 | RF-22 | Trilha de auditoria imutável e verificável de todos os eventos | Art. 20 V; art. 24 I | Sim, cadeia de hashes, gatilhos e reconciliação com as tabelas de negócio; sem ancoragem externa (L-14) |
 | RF-23 | Visão de auditoria com leitura de todos os registros | Art. 9º; art. 24 V | Sim |
 | RF-24 | Relatórios ao MDIC: registros e certificados emitidos, volume de materiais, incidentes | Art. 27 | Parcial: os dois primeiros |
@@ -43,7 +43,7 @@ Origem: Portaria GM/MDIC nº 325, de 6 de novembro de 2026 (`portaria-325-2026.p
 | RNF-04 | Interoperabilidade entre plataformas | Art. 22; art. 21 §5º; art. 28 | Exportação e importação em JSON versionado; hash obrigatório; importação só para geradora credenciada; certificado e crédito marcados como importados; rejeição de chassi já creditado. Sem assinatura de origem (L-15) |
 | RNF-05 | Sem aprisionamento do usuário | Art. 19 §2º; art. 24 X | Histórico completo exportável pela própria empresa |
 | RNF-06 | Acesso supervisionado do MDIC | Art. 24 V | Papel AUDITOR, somente leitura |
-| RNF-07 | Mecanismos antifraude | Art. 21 III; art. 25 VI | Unicidade de chassi, certificado bloqueado sem evidências, trilha verificável |
+| RNF-07 | Mecanismos antifraude | Art. 21 III; art. 25 VI | Unicidade de chassi (VIN), de Renavam e de certidão de baixa; evidência de classificação sem reuso entre veículos; certificado bloqueado sem evidências; trilha verificável e reconciliação. O conteúdo da evidência não é conferido (L-17) |
 | RNF-08 | SAST e DAST por terceiro independente | Art. 23 VII | Análise estática local; laudo independente fora do escopo |
 | RNF-09 | Disponibilidade de 99,5% e contingência | Art. 20 VIII | Fora do escopo |
 | RNF-10 | Incidente crítico comunicado em 24 horas | Art. 24 III | Fora do escopo |

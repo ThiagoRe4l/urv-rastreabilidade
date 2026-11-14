@@ -89,7 +89,9 @@ class Roteiro:
 
     def anexar(self, vid: str, tipo: str, etapa_tipo: str | None, pdf: bool = False) -> None:
         dados = {"tipo": tipo} | ({"etapa_tipo": etapa_tipo} if etapa_tipo else {})
-        arquivo = ("doc.pdf", PDF, "application/pdf") if pdf else ("foto.png", PNG, "image/png")
+        # A evidência de classificação não se repete entre veículos (A7): cada execução gera a sua.
+        unico = PDF + f"%{secrets.token_hex(16)}".encode() if tipo == "EVIDENCIA_CLASSIFICACAO" else PDF
+        arquivo = ("doc.pdf", unico, "application/pdf") if pdf else ("foto.png", PNG, "image/png")
         self.post(f"/veiculos/{vid}/anexos", OPERADOR, data=dados, files={"arquivo": arquivo})
 
     def verificar(self) -> dict:
@@ -99,13 +101,13 @@ class Roteiro:
         return {
             "chassi": chassi,
             "placa": "DEM0A26",
-            "renavam": "12345678901",
+            "renavam": f"{secrets.randbelow(10**11):011d}",  # único por veículo (A7)
             "data_entrada": self.hoje,
             "tipo": "SINISTRADO_PEQUENA_MEDIA",
             "origem_aquisicao": "LEILAO_SEGURADORA",
             "documento_entrada_tipo": "NF_ENTRADA",
             "documento_entrada_numero": "NF-DEMO-1",
-            "certidao_baixa_numero": "CB-DEMO-1",
+            "certidao_baixa_numero": f"CB-DEMO-{secrets.token_hex(4).upper()}",
             "peso_entrada_kg": "1180.500",
             "sem_viabilidade_desmontagem": False,
             **mudancas,
