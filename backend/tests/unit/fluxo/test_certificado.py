@@ -7,11 +7,11 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import select
 
+from app.core import relogio
 from app.models import Certificado, UrvCredito, UrvLancamento, Usuario
 from app.modules.documentos import service as documentos
 from app.modules.documentos.service import (
     P_CERTIDAO_BAIXA,
-    P_CERTIFICADO_ANTERIOR,
     P_CREDENCIAMENTO,
     P_DESCONTAMINACAO,
     P_DESMONTAGEM,
@@ -26,7 +26,7 @@ from app.modules.documentos.service import (
     P_PESAGEM,
     P_RECEPCAO,
 )
-from scripts.seed import EMAIL_ADMIN, EMAIL_AUDITOR
+from scripts.seed import EMAIL_ADMIN, EMAIL_AUDITOR, EMAIL_DESMONTADORA
 from tests.unit.fluxo.apoio import (
     API,
     CHASSI,
@@ -273,6 +273,10 @@ def test_fluxo_completo_por_http_ate_o_certificado(
 
     # `gerar_credito` foi chamado uma vez, com o certificado, na mesma transação.
     assert [cert.id for cert in credito_substituto] == [db_session.scalar(select(Certificado.id))]
+    # PM-URV-02: o fluxo informa o autor, e o evento CREDITO_GERADO não fica sem usuário.
+    assert [u.email for u in credito_substituto.usuarios] == [EMAIL_DESMONTADORA]
+    credito_id = db_session.scalar(select(UrvCredito.id))
+    assert eventos(db_session, "CREDITO_GERADO", credito_id)[0].usuario_id is not None
     assert db_session.scalar(select(UrvCredito.quantidade)) == Decimal("0.94")
     assert db_session.scalar(select(UrvLancamento.quantidade)) == Decimal("0.94")
     ev = eventos(db_session, "CERTIFICADO_EMITIDO", c["id"])
@@ -322,8 +326,9 @@ def test_um_chassi_recebe_um_unico_certificado(client, h, db_session) -> None:
     assert certificado(client, h, v["id"]).status_code == 201
 
     r = certificado(client, h, v["id"])
-    assert r.status_code == 422
-    assert r.json()["pendencias"] == [P_CERTIFICADO_ANTERIOR]
+    assert r.status_code == 409  # PM-04: conflito, fora da lista de pendências
+    assert r.json()["codigo"] == "CERTIFICADO_JA_EMITIDO"
+    assert "pendencias" not in r.json() or not r.json()["pendencias"]
     assert len(db_session.scalars(select(Certificado)).all()) == 1
     assert len(db_session.scalars(select(UrvCredito)).all()) == 1
 
@@ -408,3 +413,38 @@ def test_certificados_filtrados_por_empresa(client, h, h_outra, auth, dados_demo
     assert alheio.json()["total"] == 0
     assert client.get(f"{url}/{ca['id']}", headers=h_outra).status_code == 404
     assert client.get(f"{url}/{ca['id']}", headers=auth(EMAIL_ADMIN)).status_code == 200
+
+
+def test_laudo_pode_ser_lido_antes_do_certificado(client, h, h_outra, auth) -> None:
+    """PM-WEB-03, RF-14 e RF-23: GET /veiculos/{id}/laudo."""
+    v = criar_veiculo(client, h)
+    r = client.get(f"{VEICULOS}/{v['id']}/laudo", headers=h)
+    assert (r.status_code, r.json()["codigo"]) == (404, "NAO_ENCONTRADO")
+
+    etapa(client, h, v["id"], "DESCONTAMINACAO")
+    etapa(client, h, v["id"], "DESTRUICAO")
+    assinado = laudo(client, h, v["id"]).json()
+    for cabecalho in (h, auth(EMAIL_AUDITOR), auth(EMAIL_ADMIN)):
+        r = client.get(f"{VEICULOS}/{v['id']}/laudo", headers=cabecalho)
+        assert r.status_code == 200, r.text
+        assert r.json() == assinado
+    # Outra empresa não descobre que o veículo existe.
+    assert client.get(f"{VEICULOS}/{v['id']}/laudo", headers=h_outra).status_code == 404
+    assert client.get(f"{VEICULOS}/{uuid.uuid4()}/laudo", headers=h).status_code == 404
+
+
+def test_certificado_usa_a_data_de_brasilia(client, h) -> None:
+    """PM-URV-06: às 22h de 31/12/2026 em Brasília já é 2027 em UTC, mas a emissão é de 2026.
+
+    Em 2026 não há meta (art. 18 §7º); em 2027 a meta é de 80%. O número leva o ano da emissão.
+    """
+    v = criar_veiculo(client, h)
+    executar_passos(client, h, v["id"])
+    client.app.dependency_overrides[relogio.agora] = lambda: datetime(2027, 1, 1, 1, 0, tzinfo=UTC)
+    try:
+        c = certificado(client, h, v["id"])
+    finally:
+        client.app.dependency_overrides.pop(relogio.agora)
+    assert c.status_code == 201, c.text
+    assert c.json()["meta_ano"] is None
+    assert c.json()["numero"].startswith("CRV-2026-")

@@ -66,7 +66,6 @@ P_DESTRUICAO = "Etapa DESTRUICAO não concluída (6)"
 P_PESAGEM = "Falta ao menos uma pesagem (6)"
 P_FOTO_DESTRUICAO = "Falta foto da etapa DESTRUICAO, a separação dos materiais (6)"
 P_LAUDO = "Falta o Laudo de Reciclagem assinado (7)"
-P_CERTIFICADO_ANTERIOR = "O chassi já tem certificado emitido (8)"
 
 
 def _hash(conteudo: dict[str, Any]) -> tuple[bytes, str]:
@@ -205,17 +204,15 @@ def laudo_para_saida(laudo: Laudo) -> LaudoSaida:
 # --- Certificado -------------------------------------------------------------------------------
 
 
-def pendencias_certificado(
-    session: Session, veiculo: Veiculo, em: date, *, para_emissao: bool = False
-) -> list[str]:
+def pendencias_certificado(session: Session, veiculo: Veiculo, em: date) -> list[str]:
     """O que falta para o certificado. RF-15, art. 18 VIII; art. 8º I. Lista vazia = pode emitir.
 
-    Devolve todas as pendências de uma vez. Com certificado já emitido não há nada a fazer:
-    a lista é vazia na consulta e traz só a pré-condição 8 na tentativa de emitir de novo.
+    Devolve todas as pendências de uma vez. Com certificado já emitido não há nada a fazer e a
+    lista é vazia: a pré-condição 8 (chassi sem certificado anterior) não é pendência, é o
+    409 `CERTIFICADO_JA_EMITIDO` de `emitir_certificado` (PM-04).
     """
-    # 8. RF-21, arts. 28 e 29: um chassi gera crédito uma única vez.
     if obter_certificado_do_veiculo(session, veiculo.id) is not None:
-        return [P_CERTIFICADO_ANTERIOR] if para_emissao else []
+        return []
 
     faltas: list[str] = []
     # 1. Arts. 11 e 16; art. 8º I: só empresa credenciada gera URV.
@@ -280,7 +277,14 @@ def emitir_certificado(
     veiculo = veiculos.obter_veiculo(session, usuario, veiculo_id, bloquear=True)
     session.flush()
 
-    faltas = pendencias_certificado(session, veiculo, dia, para_emissao=True)
+    # 8. RF-21, arts. 28 e 29: um chassi gera crédito uma única vez. É conflito com o estado
+    # do registro, como CHASSI_DUPLICADO e CHASSI_JA_CONSUMIDO, não pendência (PM-04).
+    if obter_certificado_do_veiculo(session, veiculo.id) is not None:
+        raise ErroNegocio(
+            409, "CERTIFICADO_JA_EMITIDO", "Este chassi já tem Certificado de Reciclagem Veicular emitido."
+        )
+
+    faltas = pendencias_certificado(session, veiculo, dia)
     if faltas:
         raise ErroNegocio(
             422,
@@ -344,7 +348,7 @@ def emitir_certificado(
         },
     )
     # RF-16, art. 18 §3º: o crédito nasce com o certificado. A lógica é do módulo `urv`.
-    credito = urv_service.gerar_credito(session, certificado)
+    credito = urv_service.gerar_credito(session, certificado, usuario=usuario)  # PM-URV-02: autor do evento
     # Se a destinação já estava concluída com DMR, o veículo encerra aqui.
     veiculos.encerrar_se_destinado(session, usuario, veiculo)
     return certificado, credito

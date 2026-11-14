@@ -6,17 +6,10 @@ import pytest
 
 from app.core.config import get_settings
 from app.core.seguranca import hash_senha
-from app.models import (
-    CredenciamentoStatus,
-    LancamentoTipo,
-    Papel,
-    TipoEmpresa,
-    UrvCredito,
-    UrvLancamento,
-    Usuario,
-)
+from app.models import CredenciamentoStatus, Papel, TipoEmpresa, Usuario
 from app.modules.empresas import service as empresas
 from app.modules.empresas.schemas import CredenciamentoAtualizar, EmpresaCriar
+from app.modules.urv import service as urv_service
 from scripts.seed import EMAIL_DESMONTADORA, SENHA_DEMO
 from tests.unit.fluxo.apoio import CNPJ_OUTRA, EMAIL_OUTRA
 
@@ -28,38 +21,30 @@ def pasta_uploads(tmp_path, monkeypatch):
     return tmp_path
 
 
-def gerar_credito_substituto(session, certificado) -> UrvCredito:
-    """Substituto de `urv.service.gerar_credito` (agente 02), só com o que a assinatura promete."""
-    credito = UrvCredito(
-        certificado_id=certificado.id,
-        geradora_id=certificado.empresa_id,
-        titular_id=certificado.empresa_id,
-        quantidade=certificado.fator,
-    )
-    session.add(credito)
-    session.flush()
-    session.add(
-        UrvLancamento(
-            empresa_id=certificado.empresa_id,
-            tipo=LancamentoTipo.CREDITO,
-            quantidade=certificado.fator,
-            credito_id=credito.id,
-        )
-    )
-    session.flush()
-    return credito
+class Chamadas(list):
+    """Certificados passados a `gerar_credito`, na ordem; `usuarios` guarda o autor de cada um."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.usuarios: list = []
 
 
 @pytest.fixture(autouse=True)
-def credito_substituto(monkeypatch):
-    """O fluxo só chama `gerar_credito`; a lógica do crédito não é testada aqui."""
-    chamadas: list = []
+def credito_substituto(monkeypatch) -> Chamadas:
+    """Espião de `urv.service.gerar_credito`: chama a implementação real e guarda as chamadas.
 
-    def _substituto(session, certificado):
+    Até a integração era um substituto, porque a função ainda não existia nesta branch. Agora
+    o crédito é o real, e o espião confere que o fluxo informa quem emitiu (PM-URV-02).
+    """
+    chamadas = Chamadas()
+    real = urv_service.gerar_credito
+
+    def _espiao(session, certificado, *, usuario=None):
         chamadas.append(certificado)
-        return gerar_credito_substituto(session, certificado)
+        chamadas.usuarios.append(usuario)
+        return real(session, certificado, usuario=usuario)
 
-    monkeypatch.setattr("app.modules.urv.service.gerar_credito", _substituto)
+    monkeypatch.setattr("app.modules.urv.service.gerar_credito", _espiao)
     return chamadas
 
 
