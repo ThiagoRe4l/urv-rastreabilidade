@@ -9,6 +9,7 @@ from datetime import date
 from sqlalchemy import Select, or_, select
 from sqlalchemy.orm import Session
 
+from app.core import relogio
 from app.core.deps import escopo_empresa
 from app.core.erros import ErroNegocio, NaoEncontrado
 from app.models import CredenciamentoStatus, Empresa, TipoEmpresa, Usuario, Vinculo
@@ -143,7 +144,7 @@ def alterar_credenciamento(
             "Fabricante ou importador não tem credenciamento; use registro_compromissos (art. 8º II).",
         )
     validade = dados.validade if dados.validade is not None else empresa.credenciamento_validade
-    hoje = date.today()
+    hoje = relogio.hoje()  # PM-URV-06: validade na data de Brasília (art. 16)
     if dados.status == CredenciamentoStatus.ATIVO:
         if validade is None:
             raise ErroNegocio(422, "VALIDADE_OBRIGATORIA", "Credenciamento ATIVO exige validade (art. 16).")

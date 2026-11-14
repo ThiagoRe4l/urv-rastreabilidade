@@ -8,12 +8,13 @@ import json
 import secrets
 import uuid
 from collections.abc import Sequence
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
+from app.core import relogio
 from app.core.configuracao import fator_vigente
 from app.core.deps import filtrar_por_empresa, garantir_acesso_empresa
 from app.core.erros import ErroNegocio, NaoEncontrado
@@ -273,11 +274,13 @@ def emitir_certificado(
     session: Session, usuario: Usuario, veiculo_id: uuid.UUID, *, agora: datetime | None = None
 ) -> tuple[Certificado, UrvCredito]:
     """RF-15, art. 18 VIII: emite o certificado e gera o crédito de URV na mesma transação."""
-    agora = agora or datetime.now(UTC)
+    agora = agora or relogio.agora()
+    # PM-URV-06: credenciamento, meta do ano e fator valem na data de Brasília, não em UTC.
+    dia = relogio.data_operacao(agora)
     veiculo = veiculos.obter_veiculo(session, usuario, veiculo_id, bloquear=True)
     session.flush()
 
-    faltas = pendencias_certificado(session, veiculo, agora.date(), para_emissao=True)
+    faltas = pendencias_certificado(session, veiculo, dia, para_emissao=True)
     if faltas:
         raise ErroNegocio(
             422,
@@ -290,10 +293,10 @@ def emitir_certificado(
     laudo = obter_laudo(session, veiculo.id)
     # RF-12, art. 18 §5º: abaixo da meta é alerta gravado no certificado, não bloqueio.
     percentual = residuos.percentual_aproveitado(residuos.pesagens_do_veiculo(session, veiculo.id))
-    meta = residuos.meta_do_ano(agora.year)
+    meta = residuos.meta_do_ano(dia.year)
     # RF-16, art. 3º §2º: o fator é o do tipo efetivo, vigente na data da emissão.
-    fator = fator_vigente(session, veiculo.tipo, agora.date())
-    numero = f"CRV-{agora:%Y}-{secrets.token_hex(5).upper()}"
+    fator = fator_vigente(session, veiculo.tipo, dia)
+    numero = f"CRV-{dia:%Y}-{secrets.token_hex(5).upper()}"
     _, hash_conteudo = _hash(
         {
             "numero": numero,

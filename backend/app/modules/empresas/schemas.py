@@ -4,6 +4,7 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from app.core.cnpj import cnpj_valido, normalizar_cnpj
+from app.core.relogio import hoje
 from app.models import CredenciamentoStatus, TipoEmpresa
 
 
@@ -35,7 +36,7 @@ class EmpresaSaida(BaseModel):
         return (
             self.credenciamento_status == CredenciamentoStatus.ATIVO
             and self.credenciamento_validade is not None
-            and self.credenciamento_validade >= date.today()
+            and self.credenciamento_validade >= hoje()  # PM-URV-06
         )
 
 

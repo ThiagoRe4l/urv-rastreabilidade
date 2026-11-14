@@ -7,8 +7,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.core.relogio import agora
 from app.models import Mmv, Usuario
-from app.modules.urv.relogio import agora
 from scripts.seed import DadosDemo
 from tests.unit.urv.apoio import HOJE, criar_mmv
 

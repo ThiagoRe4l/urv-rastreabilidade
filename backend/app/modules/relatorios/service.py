@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.decimais import quantizar, quantizar_peso
+from app.core.relogio import inicio_do_dia
 from app.models import (
     Certificado,
     Consumo,
@@ -19,7 +20,6 @@ from app.models import (
     Veiculo,
 )
 from app.modules.relatorios.schemas import MaterialSaida, RelatorioMdicSaida
-from app.modules.urv.relogio import inicio_do_dia
 
 
 def relatorio_mdic(session: Session, ano: int) -> RelatorioMdicSaida:

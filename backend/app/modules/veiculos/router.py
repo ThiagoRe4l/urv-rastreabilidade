@@ -4,7 +4,7 @@ Dono: backend-fluxo (agente 01). O router já está registrado em app/main.py.
 """
 
 import uuid
-from datetime import date
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from fastapi.responses import FileResponse
@@ -14,6 +14,7 @@ from app.core.config import get_settings
 from app.core.db import obter_sessao
 from app.core.erros import Erro
 from app.core.paginacao import Pagina, Paginacao, paginacao, paginar
+from app.core.relogio import agora, data_operacao
 from app.models import AnexoTipo, EstadoVeiculo, EtapaTipo, Usuario
 from app.modules.documentos import service as documentos
 from app.modules.residuos import service as residuos
@@ -61,6 +62,7 @@ def detalhar_veiculo(
     veiculo_id: uuid.UUID,
     session: Session = Depends(obter_sessao),
     usuario: Usuario = Depends(le_fluxo),
+    momento: datetime = Depends(agora),
 ) -> VeiculoDetalhe:
     veiculo = service.obter_veiculo(session, usuario, veiculo_id)
     laudo = documentos.obter_laudo(session, veiculo.id)
@@ -69,7 +71,9 @@ def detalhar_veiculo(
         **VeiculoSaida.model_validate(veiculo).model_dump(exclude={"rebaixado"}),
         etapas=[EtapaSaida.model_validate(e) for e in sorted(veiculo.etapas, key=lambda e: e.iniciada_em)],
         anexos=[AnexoSaida.model_validate(a) for a in sorted(veiculo.anexos, key=lambda a: a.criado_em)],
-        pendencias_certificado=documentos.pendencias_certificado(session, veiculo, date.today()),  # RF-15
+        pendencias_certificado=documentos.pendencias_certificado(  # RF-15; PM-URV-06
+            session, veiculo, data_operacao(momento)
+        ),
         percentual_aproveitado=residuos.percentual_aproveitado(  # RF-12
             residuos.pesagens_do_veiculo(session, veiculo.id)
         ),

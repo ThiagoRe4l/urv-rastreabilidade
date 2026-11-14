@@ -13,6 +13,7 @@ from pydantic import (
     model_validator,
 )
 
+from app.core.relogio import hoje
 from app.models import (
     AnexoTipo,
     DocumentoEntradaTipo,
@@ -77,7 +78,7 @@ class VeiculoCriar(BaseModel):
     @field_validator("data_entrada")
     @classmethod
     def _data(cls, v: date) -> date:
-        if v > date.today():
+        if v > hoje():  # PM-URV-06: data de Brasília
             raise ValueError("data_entrada não pode estar no futuro")
         return v
 

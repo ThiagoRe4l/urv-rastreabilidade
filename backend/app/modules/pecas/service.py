@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import filtrar_por_empresa, garantir_acesso_empresa
 from app.core.erros import ErroNegocio, NaoEncontrado
+from app.core.relogio import data_operacao
 from app.models import Empresa, Peca, PecaClassificacao, PecaCondicao, PecaDestino, Usuario, Veiculo
 from app.modules.auditoria.service import registrar_evento
 from app.modules.pecas.schemas import Etiqueta, PecaAtualizar, PecaCriar, PecaSaida, RastreioSaida
@@ -56,7 +57,11 @@ def _etiqueta(peca: Peca, chassi: str, cnpj: str) -> Etiqueta | None:
     if peca.classificacao != PecaClassificacao.REUTILIZAVEL or peca.codigo_rastreio is None:
         return None
     return Etiqueta(
-        nome=peca.nome, chassi=chassi, data=peca.criado_em.date(), cnpj=cnpj, codigo=peca.codigo_rastreio
+        nome=peca.nome,
+        chassi=chassi,
+        data=data_operacao(peca.criado_em),  # Anexo III 8; L-11; PM-URV-06
+        cnpj=cnpj,
+        codigo=peca.codigo_rastreio,
     )
 
 

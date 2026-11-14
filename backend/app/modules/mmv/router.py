@@ -13,11 +13,11 @@ from app.core.db import obter_sessao
 from app.core.deps import exige_papel
 from app.core.erros import Erro
 from app.core.paginacao import Pagina, Paginacao, paginacao, paginar
+from app.core.relogio import agora, data_operacao
 from app.models import Papel, Usuario
 from app.modules.mmv import service
 from app.modules.mmv.schemas import MmvCriar, MmvSaida
 from app.modules.urv.acesso import empresa_consultada
-from app.modules.urv.relogio import agora, data_operacao
 
 router = APIRouter(tags=["mmv"])
 

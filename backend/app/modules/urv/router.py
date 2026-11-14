@@ -13,10 +13,10 @@ from app.core.db import obter_sessao
 from app.core.deps import exige_papel, usuario_atual
 from app.core.erros import Erro
 from app.core.paginacao import Pagina, Paginacao, paginacao, paginar
+from app.core.relogio import agora
 from app.models import LancamentoTipo, Papel, UrvCreditoStatus, Usuario
 from app.modules.urv import service
 from app.modules.urv.acesso import empresa_consultada
-from app.modules.urv.relogio import agora
 from app.modules.urv.schemas import (
     ConsumoCriar,
     ConsumoSaida,

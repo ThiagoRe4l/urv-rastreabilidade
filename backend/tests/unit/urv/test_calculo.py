@@ -5,6 +5,7 @@ from decimal import Decimal
 
 import pytest
 
+from app.core.relogio import data_operacao
 from app.modules.urv.calculo import (
     ano_mes,
     calcular_debito,
@@ -13,7 +14,6 @@ from app.modules.urv.calculo import (
     regularizar_ate,
     rm_do_nivel,
 )
-from app.modules.urv.relogio import data_operacao
 
 PB = Decimal("150000.00")  # art. 3º §5º
 

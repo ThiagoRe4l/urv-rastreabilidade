@@ -12,6 +12,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.relogio import hoje
 from app.core.seguranca import hash_senha
 from app.models import (
     ChaveParametro,
@@ -159,9 +160,7 @@ def semear(session: Session) -> DadosDemo:
         session,
         admin,
         desmonte.id,
-        CredenciamentoAtualizar(
-            status=CredenciamentoStatus.ATIVO, validade=empresas.somar_anos(date.today(), 2)
-        ),
+        CredenciamentoAtualizar(status=CredenciamentoStatus.ATIVO, validade=empresas.somar_anos(hoje(), 2)),
     )
     montadora = empresas.criar_empresa(
         session,

@@ -28,6 +28,7 @@ from app.core.cnpj import normalizar_cnpj
 from app.core.configuracao import fator_vigente
 from app.core.decimais import quantizar
 from app.core.erros import ErroNegocio, NaoEncontrado
+from app.core.relogio import data_operacao
 from app.models import (
     Certificado,
     Consumo,
@@ -75,7 +76,6 @@ from app.modules.portabilidade.schemas import (
     VinculoPortavel,
 )
 from app.modules.urv.calculo import calcular_debito, rm_do_nivel
-from app.modules.urv.relogio import data_operacao
 from app.modules.urv.schemas import normalizar_chassi
 from app.modules.urv.service import saldo_empresa, travar_empresas
 

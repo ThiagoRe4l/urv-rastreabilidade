@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.configuracao import fim_saldo_negativo, preco_base_vigente
 from app.core.decimais import quantizar
 from app.core.erros import ErroNegocio, NaoEncontrado
+from app.core.relogio import data_operacao
 from app.models import (
     Certificado,
     Consumo,
@@ -47,7 +48,6 @@ from app.modules.urv.calculo import (
     regularizar_ate,
     rm_do_nivel,
 )
-from app.modules.urv.relogio import data_operacao
 from app.modules.urv.schemas import (
     CertificadoResumo,
     ConsumoCriar,

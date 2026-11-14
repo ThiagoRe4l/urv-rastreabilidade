@@ -4,6 +4,7 @@ Dono: backend-fluxo (agente 01). O router já está registrado em app/main.py.
 """
 
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
@@ -12,6 +13,7 @@ from app.core.db import obter_sessao
 from app.core.erros import Erro
 from app.core.integracoes import AssinadorDigital, obter_assinador_digital
 from app.core.paginacao import Pagina, Paginacao, paginacao, paginar
+from app.core.relogio import agora
 from app.models import Usuario
 from app.modules.documentos import service
 from app.modules.documentos.schemas import CertificadoDetalhe, CertificadoSaida, LaudoCriar, LaudoSaida
@@ -50,8 +52,9 @@ def emitir_certificado(
     veiculo_id: uuid.UUID,
     session: Session = Depends(obter_sessao),
     usuario: Usuario = Depends(escreve_fluxo),
+    momento: datetime = Depends(agora),
 ) -> CertificadoSaida:
-    certificado, _ = service.emitir_certificado(session, usuario, veiculo_id)  # RF-15 e RF-16
+    certificado, _ = service.emitir_certificado(session, usuario, veiculo_id, agora=momento)  # RF-15, RF-16
     session.commit()
     return service.certificados_para_saida(session, [certificado])[0]
 

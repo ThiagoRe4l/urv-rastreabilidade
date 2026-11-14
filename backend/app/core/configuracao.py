@@ -4,7 +4,7 @@ Os fatores e o preço base podem ser revistos (art. 3º §6º), por isso nada aq
 constante no código: sempre leia o valor vigente na data da operação.
 """
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends
@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.core.db import obter_sessao
 from app.core.deps import usuario_atual
 from app.core.erros import ErroNegocio
+from app.core.relogio import agora, data_operacao
 from app.models import ChaveParametro, ConfigFator, ConfigParametro, TipoVeiculo, Usuario
 
 
@@ -86,8 +87,9 @@ class FatoresSaida(BaseModel):
 def listar_fatores(
     session: Session = Depends(obter_sessao),
     _: Usuario = Depends(usuario_atual),
+    momento: datetime = Depends(agora),
 ) -> FatoresSaida:
-    em = date.today()
+    em = data_operacao(momento)  # PM-URV-06: vigência na data de Brasília (art. 3º §6º)
     itens = [
         FatorSaida(tipo=f.tipo_veiculo, fator=f.fator, vigente_desde=f.vigente_desde)
         for f in fatores_vigentes(session, em)
