@@ -183,7 +183,25 @@ class Roteiro:
         cinto = self.post(
             f"/veiculos/{vid}/pecas",
             OPERADOR,
-            json={"nome": "Cinto de segurança", "classificacao": "NAO_REUTILIZAVEL", "destino": "DESCARTE"},
+            json={
+                "nome": "Cinto de segurança",
+                "classificacao": "NAO_REUTILIZAVEL",
+                "destino": "DESCARTE",
+                "item_seguranca": True,  # Anexo III 7: só como não reutilizável
+            },
+        )
+        airbag = {
+            "nome": "Airbag",
+            "classificacao": "REUTILIZAVEL",
+            "condicao": "USADA",
+            "destino": "ESTOQUE",
+        }
+        self.post(
+            f"/veiculos/{vid}/pecas",
+            OPERADOR,
+            422,
+            "ITEM_SEGURANCA_NAO_REUTILIZAVEL",
+            json=airbag | {"item_seguranca": True},
         )
         r = self.cli.patch(f"/pecas/{cinto['id']}", json={"descaracterizada": True}, headers=self.h(OPERADOR))
         self.esperar(r, 200, rotulo="descaracterizar")
@@ -201,11 +219,15 @@ class Roteiro:
         ):
             pesagem = {"fracao": fracao, "destino": destino, "peso_kg": peso}
             self.post(f"/veiculos/{vid}/pesagens", OPERADOR, json=pesagem)
-        pesagens = self.get(f"/veiculos/{vid}/pesagens", OPERADOR)
+        p = self.get(f"/veiculos/{vid}/pesagens", OPERADOR)
         print(
-            f"  {pesagens['total']} pesagens, {pesagens['peso_total_kg']} kg, "
-            f"{pesagens['percentual_aproveitado']}% aproveitado; meta do ano: {pesagens['meta_ano']}"
+            f"  {p['total']} pesagens, {p['peso_total_kg']} de {p['peso_entrada_kg']} kg; "
+            f"{p['percentual_aproveitado']}% do peso do veículo aproveitado; meta do ano: {p['meta_ano']}"
         )
+        # Art. 18 §§5º e 6º: as frações somam no máximo o peso de entrada (A2 da revisão).
+        acima = {"fracao": "FERROSO", "destino": "RECICLAGEM", "peso_kg": p["peso_entrada_kg"]}
+        self.post(f"/veiculos/{vid}/pesagens", OPERADOR, 422, "PESO_ACIMA_DA_ENTRADA", json=acima)
+        print("  pesagem que passaria do peso de entrada: 422 PESO_ACIMA_DA_ENTRADA")
         dmr = self.post(
             f"/veiculos/{vid}/dmrs",
             OPERADOR,
@@ -241,7 +263,8 @@ class Roteiro:
         self.post(f"/veiculos/{vid}/certificado", OPERADOR, 409, "CERTIFICADO_JA_EMITIDO")
         print("  segunda emissão para o mesmo chassi: 409 CERTIFICADO_JA_EMITIDO")
 
-        self.passo(6, "Desmontadora transfere o crédito ao fabricante")
+        self.passo(6, "Desmontadora transfere o crédito ao fabricante, que passa a ler o dossiê")
+        self.get(f"/certificados/{cert['id']}", FISCAL, 404, "NAO_ENCONTRADO")
         saldo_fab_antes = self.get("/urv/saldo", FISCAL)["saldo"]
         transferir = f"/urv/creditos/{cert['credito']['id']}/transferir"
         credito = self.post(transferir, OPERADOR, 200, json={"fabricante_id": montadora["id"]})
@@ -252,6 +275,17 @@ class Roteiro:
             f"  crédito {credito['status']} para {credito['titular']['razao_social']}; "
             f"saldo do fabricante {saldo_fab_antes} -> {saldo_fab}; segunda transferência: 409"
         )
+        # Art. 9º: o titular guarda e apresenta a documentação do crédito (A8 da revisão).
+        dossie = self.get(f"/certificados/{cert['id']}", FISCAL)
+        self.get(f"/veiculos/{vid}/laudo", FISCAL)
+        dmrs_fab = self.get(f"/veiculos/{vid}/dmrs", FISCAL)
+        anexos_fab = self.get(f"/veiculos/{vid}", FISCAL)["anexos"]
+        r = self.cli.get(f"/anexos/{anexos_fab[0]['id']}/arquivo", headers=self.h(FISCAL))
+        self.esperar(r, 200, rotulo="anexo pelo fabricante")
+        print(
+            f"  o fabricante lê o certificado {dossie['numero']}, o laudo, {len(anexos_fab)} anexos e "
+            f"{dmrs_fab['total']} DMR"
+        )
 
         self.passo(7, "Fabricante indica os chassis vendidos; o débito é calculado e o saldo baixa")
         novos = [self.vin(), self.vin()]
@@ -259,7 +293,12 @@ class Roteiro:
             "/urv/consumos/simular",
             FISCAL,
             200,
-            json={"mmv_id": mmv["id"], "quantidade": len(novos), "preco_medio": "180000.00"},
+            json={
+                "mmv_id": mmv["id"],
+                "quantidade": len(novos),
+                "preco_medio": "180000.00",
+                "periodo": self.hoje[:7],
+            },
         )
         m = sim["memoria_calculo"]
         print(
@@ -272,6 +311,9 @@ class Roteiro:
         print(f"  consumo de {consumo['urv_debito']} URV; saldo do fabricante {saldo_fab} -> {saldo_final}")
         self.post("/urv/consumos", FISCAL, 409, "CHASSI_JA_CONSUMIDO", json=corpo | {"chassis": [novos[0]]})
         print("  o mesmo chassi novo em outro consumo: 409 CHASSI_JA_CONSUMIDO")
+        outro_pm = corpo | {"chassis": [self.vin()], "preco_medio": "190000.00"}
+        self.post("/urv/consumos", FISCAL, 422, "PM_DIVERGENTE_NO_PERIODO", json=outro_pm)
+        print("  Pm diferente para o mesmo MMV no mesmo período: 422 PM_DIVERGENTE_NO_PERIODO")
 
         self.passo(8, "Auditor busca o chassi, vê a linha do tempo e verifica a cadeia de hashes")
         achados = self.get("/veiculos", AUDITOR, params={"chassi": chassi})["itens"]
@@ -293,11 +335,18 @@ class Roteiro:
         v = self.verificar()
         assert v["integra"], v
         print(f"  cadeia íntegra, {v['total']} eventos")
+        rec = self.get("/auditoria/reconciliar", AUDITOR)
+        assert rec["conciliado"], rec["divergencias"][:5]
+        contagem = ", ".join(f"{n} {k}" for k, n in rec["verificados"].items())
+        print(f"  reconciliação: conciliado ({contagem})")
 
         self.passo(9, "Tentativa barrada: o mesmo chassi de novo (a adulteração é por scripts.adulterar)")
         disfarcado = self.dados_veiculo(f" {chassi.lower()} ", placa="XYZ9Z99", tipo="SUCATA_INSERVIVEL")
         self.post("/veiculos", OPERADOR, 409, "CHASSI_DUPLICADO", json=disfarcado)
         print("  o mesmo chassi, em minúsculas e com espaços: 409 CHASSI_DUPLICADO")
+        mesmo_renavam = self.dados_veiculo(self.vin(), renavam=veiculo["renavam"])
+        self.post("/veiculos", OPERADOR, 409, "RENAVAM_DUPLICADO", json=mesmo_renavam)
+        print("  outro chassi com o mesmo Renavam: 409 RENAVAM_DUPLICADO")
         print(f"\nRoteiro concluído: {self.checagens} respostas conferidas, todas como esperado.")
 
 
