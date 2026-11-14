@@ -18,7 +18,6 @@ from app.core.integracoes import (
 )
 from app.main import ROUTERS, criar_app
 from app.models import ConfigFator, EventoAuditoria, TipoVeiculo, Usuario
-from app.modules.urv.service import gerar_credito
 from scripts.seed import EMAIL_DESMONTADORA, semear
 
 # --- Configuração ------------------------------------------------------------------------------
@@ -163,8 +162,3 @@ def test_openapi_e_docs(client) -> None:
     assert "/api/v1/auth/login" in esquema["paths"]
     assert client.get("/saude").json() == {"status": "ok"}
     assert criar_app().title == "URV Rastreabilidade"
-
-
-def test_gerar_credito_e_stub(db_session) -> None:
-    with pytest.raises(NotImplementedError):
-        gerar_credito(db_session, None)  # type: ignore[arg-type]
