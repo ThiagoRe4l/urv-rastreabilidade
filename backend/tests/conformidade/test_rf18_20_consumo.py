@@ -44,25 +44,36 @@ def _prazos_de_regularizacao() -> set[str]:
 # --- RF-18 ----------------------------------------------------------------------------------
 
 # URV débito = (Qv / RM) × max(1, Pm / Pb), com Pb = 150.000,00; duas casas, ROUND_HALF_UP.
+# Os casos são por RM, não por nível: qual nível usa RM 5 e qual usa RM 10 é parâmetro em
+# config_parametro, pendente do texto do Decreto 12.435/2025 (lacuna L-01; A1 da revisão).
 CASOS_DE_DEBITO = [
-    (1, 10, "150000.00", "1.00"),  # 10 veículos no preço base: 1 URV
-    (1, 3, "150000.00", "0.30"),
-    (1, 3, "90000.00", "0.30"),  # preço abaixo da base não reduz o débito: max(1, Pm/Pb)
-    (1, 10, "300000.00", "2.00"),  # o dobro do preço base dobra o débito
-    (2, 5, "150000.00", "1.00"),  # nível 2: RM = 5
-    (2, 1, "150000.00", "0.20"),
-    (2, 1, "200000.00", "0.27"),  # 0,2 × 1,3333… = 0,2666…
-    (2, 7, "175000.00", "1.63"),  # 1,4 × 1,1666… = 1,6333…
-    (1, 1, "157500.00", "0.11"),  # 0,1 × 1,05 = 0,105: HALF_UP dá 0,11 (HALF_EVEN daria 0,10)
-    (1, 1, "172500.00", "0.12"),  # 0,1 × 1,15 = 0,115: HALF_UP dá 0,12
-    (1, 1, "100000.00", "0.10"),
-    (1, 250, "189990.00", "31.67"),  # 25 × 1,2666 = 31,665: HALF_UP dá 31,67
+    (10, 10, "150000.00", "1.00"),  # 10 veículos no preço base, RM 10: 1 URV
+    (10, 3, "150000.00", "0.30"),
+    (10, 3, "90000.00", "0.30"),  # preço abaixo da base não reduz o débito: max(1, Pm/Pb)
+    (10, 10, "300000.00", "2.00"),  # o dobro do preço base dobra o débito
+    (5, 5, "150000.00", "1.00"),  # RM 5
+    (5, 1, "150000.00", "0.20"),
+    (5, 1, "200000.00", "0.27"),  # 0,2 × 1,3333… = 0,2666…
+    (5, 7, "175000.00", "1.63"),  # 1,4 × 1,1666… = 1,6333…
+    (10, 1, "157500.00", "0.11"),  # 0,1 × 1,05 = 0,105: HALF_UP dá 0,11 (HALF_EVEN daria 0,10)
+    (10, 1, "172500.00", "0.12"),  # 0,1 × 1,15 = 0,115: HALF_UP dá 0,12
+    (10, 1, "100000.00", "0.10"),
+    (10, 250, "189990.00", "31.67"),  # 25 × 1,2666 = 31,665: HALF_UP dá 31,67
 ]
 
 
-@pytest.mark.parametrize(("nivel", "qv", "pm", "esperado"), CASOS_DE_DEBITO)
-def test_rf18_calculo_do_debito_por_mmv(api, nivel, qv, pm, esperado) -> None:
-    mmv = criar_mmv(api, nivel=nivel)
+def _mmv_com_rm(api, rm: int) -> dict:
+    """MMV do nível que, na configuração vigente, usa este RM (art. 3º §3º: 5 ou 10)."""
+    for nivel in (1, 2):
+        mmv = criar_mmv(api, nivel=nivel)
+        if mmv["rm"] == rm:
+            return mmv
+    raise AssertionError(f"Nenhum nível usa RM {rm}")
+
+
+@pytest.mark.parametrize(("rm", "qv", "pm", "esperado"), CASOS_DE_DEBITO)
+def test_rf18_calculo_do_debito_por_mmv(api, rm, qv, pm, esperado) -> None:
+    mmv = _mmv_com_rm(api, rm)
     simulacao = ok(_simular(api, mmv["id"], qv, pm))
     assert dec(simulacao["urv_debito"]) == dec(esperado)
     assert isinstance(simulacao["urv_debito"], str)
