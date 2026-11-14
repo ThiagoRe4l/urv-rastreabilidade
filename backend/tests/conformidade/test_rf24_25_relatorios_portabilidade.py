@@ -38,14 +38,8 @@ def _exportar(api: Api, quem: str) -> dict:
 
 
 def _importar(api: Api, quem: str, arquivo: dict):
-    """O contrato diz só "Arquivo JSON": tenta como upload e, se não for esse o formato, como corpo."""
-    conteudo = json.dumps(arquivo).encode()
-    r = api.post(
-        "/portabilidade/importar", quem, files={"arquivo": ("exportacao.json", conteudo, "application/json")}
-    )
-    if r.status_code == 422 and "codigo" not in r.json():
-        r = api.post("/portabilidade/importar", quem, json=arquivo)
-    return r
+    """O contrato fixa o documento exportado no corpo, como `application/json` (PM-URV-03 b)."""
+    return api.post("/portabilidade/importar", quem, json=arquivo)
 
 
 def _pesos(materiais) -> Decimal:

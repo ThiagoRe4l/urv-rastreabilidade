@@ -118,15 +118,19 @@ def test_rf01_sem_credenciamento_ativo_nao_emite_certificado(api, demo, status) 
     assert corpo["pendencias"]
 
 
-def test_rf01_credenciamento_vencido_nao_emite_certificado(api, demo) -> None:
+def test_rf01_credenciamento_vencido_nao_emite_certificado(api, demo, vencer_credenciamento) -> None:
     """Art. 16: credenciamento vale por prazo certo."""
     v = processar_veiculo(api)
+    # Ninguém credencia com prazo já vencido: a API recusa (integração, caso a).
     ontem = (date.today() - timedelta(days=2)).isoformat()
-    ok(
+    erro(
         api.patch(
             f"/empresas/{demo.desmonte_id}/credenciamento", ADMIN, json={"status": "ATIVO", "validade": ontem}
-        )
+        ),
+        422,
     )
+    # O prazo vence com o tempo: a validade é recuada no banco (ver conftest.py).
+    vencer_credenciamento(demo.desmonte_id)
     corpo = erro(emitir_certificado(api, OPERADOR, v["id"]), 422, "PENDENCIAS_CERTIFICADO")
     assert corpo["pendencias"]
 

@@ -85,7 +85,7 @@ def test_rnf07_mesmo_chassi_em_fim_de_vida_em_dois_certificados(api, demo, nova_
     v, cert = gerar_credito(api, tipo="LICENCIADO_RODAGEM")
 
     # Segunda emissão para o mesmo veículo.
-    erro(emitir_certificado(api, OPERADOR, v["id"]), (409, 422))
+    erro(emitir_certificado(api, OPERADOR, v["id"]), 409, "CERTIFICADO_JA_EMITIDO")  # PM-04
     # O mesmo chassi registrado de novo, pela mesma empresa e por outra.
     for quem in (OPERADOR, outra.email):
         erro(api.post("/veiculos", quem, json=dados_veiculo(chassi=v["chassi"])), 409, "CHASSI_DUPLICADO")
@@ -186,9 +186,12 @@ def test_rnf07_desmontadora_nao_le_dados_de_outra_empresa(api, demo, nova_empres
         ("/urv/extrato", {"empresa_id": str(demo.desmonte_id)}),
     ):
         r = api.get(rota, intrusa.email, params=filtro)
-        assert r.status_code in (200, 403), r.text
+        # 404: o contrato responde ?empresa_id= de outra empresa como inexistente (PM-URV-03 a).
+        assert r.status_code in (200, 403, 404), r.text
         if r.status_code == 200:
             assert r.json()["itens"] == [], rota
+        assert v["chassi"] not in r.text, rota
+        assert cert["numero"] not in r.text, rota
     assert saldo(api, intrusa.email) == 0
     assert v["chassi"] not in str(ok(api.get("/portabilidade/exportar", intrusa.email)))
 

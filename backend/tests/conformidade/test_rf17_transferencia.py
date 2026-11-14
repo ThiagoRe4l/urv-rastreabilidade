@@ -81,7 +81,11 @@ def test_rf17_fabricante_sem_registro_de_compromissos_nao_recebe(api, demo, nova
     """Art. 8º II: 'que possuam ato de registro de compromissos junto ao MDIC'."""
     sem_registro = nova_empresa("FABRICANTE", registro_compromissos=False, vinculo_com=demo.desmonte_id)
     _, cert = gerar_credito(api)
-    erro(transferir(api, OPERADOR, cert["credito"]["id"], sem_registro.id), (409, 422))
+    erro(  # PM-URV-04
+        transferir(api, OPERADOR, cert["credito"]["id"], sem_registro.id),
+        422,
+        "FABRICANTE_SEM_REGISTRO_COMPROMISSOS",
+    )
     assert _credito(api, cert["credito"]["id"])["status"] == "DISPONIVEL"
     assert saldo(api, sem_registro.email) == 0
 

@@ -1,5 +1,7 @@
 """RF-22 (art. 20 V; art. 24 I) e RF-23 (art. 9º; art. 24 V): trilha imutável e visão de auditoria."""
 
+import hashlib
+
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
@@ -162,7 +164,10 @@ def test_rf23_auditor_le_todos_os_registros_do_fluxo(api, demo, nova_empresa) ->
     for v, cert in registros:
         detalhe = ok(api.get(f"/veiculos/{v['id']}", AUDITOR))
         assert detalhe["etapas"] and detalhe["anexos"]
-        ok(api.get(f"/anexos/{detalhe['anexos'][0]['id']}/arquivo", AUDITOR))
+        # O contrato devolve o arquivo, não JSON: confere o conteúdo pelo sha256 gravado.
+        arquivo = api.get(f"/anexos/{detalhe['anexos'][0]['id']}/arquivo", AUDITOR)
+        assert arquivo.status_code == 200, arquivo.text
+        assert hashlib.sha256(arquivo.content).hexdigest() == detalhe["anexos"][0]["sha256"]
         assert itens(api.get("/pecas", AUDITOR, params={"chassi": v["chassi"]}))
         assert itens(api.get(f"/veiculos/{v['id']}/pesagens", AUDITOR))
         assert itens(api.get(f"/veiculos/{v['id']}/dmrs", AUDITOR))

@@ -42,7 +42,7 @@ def test_rf14_laudo_assinado_pelo_responsavel_tecnico(api) -> None:
 def test_rf14_laudo_atesta_etapas_ja_executadas(api, etapa) -> None:
     """O laudo atesta descontaminação e destruição: sem a etapa concluída, não há o que atestar."""
     v = processar_veiculo(api, omitir={etapa, "laudo"})
-    erro(assinar_laudo(api, OPERADOR, v["id"]), (409, 422))
+    erro(assinar_laudo(api, OPERADOR, v["id"]), 422, "PENDENCIAS_LAUDO")  # PM-03 e
     assert ok(api.get(f"/veiculos/{v['id']}", OPERADOR))["estado"] != "LAUDO_EMITIDO"
 
 
@@ -56,7 +56,7 @@ def test_rf14_laudo_exige_identificacao_do_responsavel(api, campo) -> None:
 
 def test_rf14_um_laudo_por_veiculo(api) -> None:
     v = processar_veiculo(api)
-    erro(assinar_laudo(api, OPERADOR, v["id"]), (409, 422))
+    erro(assinar_laudo(api, OPERADOR, v["id"]), 409, "LAUDO_JA_EMITIDO")  # PM-03 e
 
 
 @pytest.mark.parametrize("quem", [FISCAL, ADMIN])

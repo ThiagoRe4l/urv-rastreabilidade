@@ -45,7 +45,7 @@ def test_rf21_chassi_e_o_mesmo_com_caixa_ou_espacos_diferentes(api) -> None:
 
 def test_rf21_um_certificado_e_um_credito_por_chassi(api) -> None:
     v, cert = gerar_credito(api, tipo="LICENCIADO_RODAGEM")
-    erro(emitir_certificado(api, OPERADOR, v["id"]), (409, 422))
+    erro(emitir_certificado(api, OPERADOR, v["id"]), 409, "CERTIFICADO_JA_EMITIDO")  # PM-04
     assert [c["id"] for c in itens(api.get("/certificados", OPERADOR))] == [cert["id"]]
     assert [c["id"] for c in itens(api.get("/urv/creditos", OPERADOR))] == [cert["credito"]["id"]]
     assert saldo(api, OPERADOR) == dec("1.00")
@@ -83,7 +83,7 @@ def test_rf21_chassi_novo_nao_se_repete_entre_mmv_nem_entre_fabricantes(api, nov
 def test_rf21_chassi_repetido_no_mesmo_consumo(api) -> None:
     mmv = criar_mmv(api)
     repetido = chassis(1) * 2
-    erro(consumir(api, FISCAL, mmv["id"], repetido), (409, 422))
+    erro(consumir(api, FISCAL, mmv["id"], repetido), 422, "CHASSI_REPETIDO_NA_LISTA")  # PM-URV-04
     assert saldo(api, FISCAL) == 0
 
 

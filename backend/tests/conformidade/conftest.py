@@ -4,8 +4,8 @@
   com o motivo (ver `apoio.Api`).
 - `nova_empresa`: cria outra empresa pela API e um usuário para ela. O usuário é gravado
   direto no banco porque não há rota de usuários (lacuna L-02).
-- `encerrar_saldo_negativo` e `antecipar_efeitos_mmv`: preparam pelo banco o que o contrato
-  não deixa preparar por HTTP (a data de hoje não é controlável pela API).
+- `encerrar_saldo_negativo`, `antecipar_efeitos_mmv` e `vencer_credenciamento`: preparam pelo
+  banco o que o contrato não deixa preparar por HTTP (a data de hoje não é controlável pela API).
 """
 
 import uuid
@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.core.seguranca import hash_senha
-from app.models import ChaveParametro, ConfigParametro, Mmv, Papel, Usuario
+from app.models import ChaveParametro, ConfigParametro, Empresa, Mmv, Papel, Usuario
 from scripts.seed import SENHA_DEMO, DadosDemo
 from tests.conformidade.apoio import ADMIN, Api, EmpresaTeste, cnpj_aleatorio, ok
 
@@ -103,6 +103,23 @@ def encerrar_saldo_negativo(db_session: Session) -> Callable[[], None]:
         db_session.flush()
 
     return _encerrar
+
+
+@pytest.fixture
+def vencer_credenciamento(db_session: Session) -> Callable[[str | uuid.UUID], None]:
+    """Faz um credenciamento ATIVO vencer: a validade passa a ser de dois dias atrás (art. 16).
+
+    A API recusa gravar credenciamento ATIVO com validade já passada (422), e não deixa
+    escolher a data da operação; vencer é a passagem do tempo, então o teste recua a validade.
+    """
+
+    def _vencer(empresa_id: str | uuid.UUID) -> None:
+        empresa = db_session.get(Empresa, uuid.UUID(str(empresa_id)))
+        assert empresa is not None
+        empresa.credenciamento_validade = date.today() - timedelta(days=2)
+        db_session.flush()
+
+    return _vencer
 
 
 @pytest.fixture
