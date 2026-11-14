@@ -32,6 +32,15 @@ Origem: Portaria GM/MDIC nº 325, de 6 de novembro de 2026 (`portaria-325-2026.p
 | RF-24 | Relatórios ao MDIC: registros e certificados emitidos, volume de materiais, incidentes | Art. 27 | Parcial: os dois primeiros |
 | RF-25 | Exportação padronizada para portabilidade e reconciliação entre plataformas | Art. 22 | Sim, JSON |
 | RF-26 | Guarda de documentos por cinco anos | Art. 9º, parágrafo único | Não, só documentado |
+| RF-27 | Peça marcada como item de segurança é obrigatoriamente não reutilizável | Anexo III 7 | Sim (R10 da revisão): `item_seguranca` só com `NAO_REUTILIZAVEL`, 422 `ITEM_SEGURANCA_NAO_REUTILIZAVEL`. Freios e direção danificados, estruturas deformadas e peças sem rastreabilidade não têm marcação própria (L-23) |
+| RF-28 | Cadeia de custódia entre desmontadora e recicladora: a desmontagem e triagem é da desmontadora, a destruição e a trituração são da recicladora, que tem o equipamento | Art. 18 V e VI; Anexo II 28; Anexo III 11 | Não (R4 da revisão; L-16) |
+| RF-29 | Enquadramento da sucata por laudo prévio ao leilão do órgão de trânsito, constando da nota fiscal de entrada ou do auto de arrematação; dano do sinistrado enquadrado pela autoridade de trânsito | Art. 2º §§2º e 4º | Não (R5 da revisão; L-17) |
+| RF-30 | "Já comercializado" verificável pela saída do estabelecimento ou pelo desembaraço aduaneiro anterior ao cadastro, porque decide o início de efeitos do MMV | Art. 5º §3º | Não (R7 da revisão; L-18) |
+| RF-31 | Registro posterior em contingência do que foi protocolado no SEI durante indisponibilidade da solução, com as datas originais | Art. 5º §6º; art. 31 | Não (R8 da revisão; L-19) |
+| RF-32 | Fator de sucata inservível alterado a requerimento de desmontadora ou recicladora, por despacho, por tecnologia comprovada | Art. 4º | Não (R9 da revisão; L-20) |
+| RF-33 | Prensagem em pátio de leilão registrada na solução, para sucata inservível prensada fora da empresa | Anexo II 27; art. 2º §1º II | Não (R11 da revisão; L-21) |
+| RF-34 | Destinação dos materiais exclusivamente em território nacional, salvo inviabilidade comprovada | Art. 18 §2º | Não (R12 da revisão; L-22) |
+| RF-35 | Comprovação do licenciamento regular do veículo de fator 1,00: Renavam ativo, IPVA e licenciamento quitados do ano corrente ou anterior à baixa | Art. 2º I | Não (R13 da revisão; L-06 e L-08) |
 
 ## Não funcionais
 
