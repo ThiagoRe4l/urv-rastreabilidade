@@ -1,7 +1,8 @@
 """Peças, etiqueta de rastreio e consulta. RF-09 e RF-10, Anexo III 6 a 8, 10 e 16."""
 
-from datetime import date
+from datetime import datetime
 
+from app.core.relogio import data_operacao
 from scripts.seed import CNPJ_DESMONTE
 from tests.unit.fluxo.apoio import API, CHASSI, criar_veiculo, eventos, peca
 
@@ -20,7 +21,8 @@ def test_peca_reutilizavel_recebe_codigo_e_etiqueta(client, h, db_session) -> No
     assert p["etiqueta"] == {
         "nome": "Porta dianteira esquerda",
         "chassi": CHASSI,
-        "data": date.fromisoformat(p["criado_em"][:10]).isoformat(),
+        # Data de Brasília (PM-URV-06), não a data UTC de `criado_em`: diferem entre 21h e 0h.
+        "data": data_operacao(datetime.fromisoformat(p["criado_em"])).isoformat(),
         "cnpj": CNPJ_DESMONTE,
         "codigo": p["codigo_rastreio"],
     }
