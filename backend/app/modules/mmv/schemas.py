@@ -51,4 +51,6 @@ class MmvSaida(BaseModel):
     efeitos_a_partir_de: date
     status: MmvStatus
     criado_em: datetime
-    rm: int = Field(description="RM do nível vigente hoje em config_parametro (art. 3º §3º; lacuna L-01)")
+    rm: int = Field(
+        description="RM vigente: 10 no nível 1, 5 no nível 2 (Decreto 12.435/2025, Anexo III 17 e 18)"
+    )

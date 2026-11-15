@@ -28,7 +28,7 @@ _erros = {409: {"model": Erro}, 422: {"model": Erro}}
 
 
 def _saida(session: Session, mmv: Mmv, momento: datetime) -> MmvSaida:
-    # RF-18, art. 3º §3º: o RM vem de config_parametro, vigente na data (L-01).
+    # RF-18, art. 3º §3º: o RM vem de config_parametro, vigente na data (decreto, Anexo III 17 e 18).
     rm = rm_vigente(session, mmv.nivel, data_operacao(momento))
     campos = {nome: getattr(mmv, nome) for nome in MmvSaida.model_fields if nome != "rm"}
     return MmvSaida(**campos, rm=rm)

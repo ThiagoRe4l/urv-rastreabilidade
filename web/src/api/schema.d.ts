@@ -2052,7 +2052,7 @@ export interface components {
             criado_em: string;
             /**
              * Rm
-             * @description RM do nível vigente hoje em config_parametro (art. 3º §3º; lacuna L-01)
+             * @description RM vigente: 10 no nível 1, 5 no nível 2 (Decreto 12.435/2025, Anexo III 17 e 18)
              */
             rm: number;
         };

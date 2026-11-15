@@ -55,11 +55,21 @@ FATORES: dict[TipoVeiculo, Decimal] = {
 PARAMETROS: dict[ChaveParametro, str] = {
     ChaveParametro.PRECO_BASE: "150000.00",  # art. 3º §5º
     ChaveParametro.FIM_SALDO_NEGATIVO: "2027-12-31",  # art. 8º §1º
-    # Art. 3º §3º. Leitura anterior à revisão, mantida até o texto do Decreto 12.435/2025
-    # (Anexo III, itens 17 e 18) ser juntado ao projeto: lacuna L-01, achado A1 da revisão.
+    # Art. 3º §3º. Leitura anterior à conferência do decreto; a vigência abaixo a confirma.
     ChaveParametro.RM_NIVEL_1: "10",
     ChaveParametro.RM_NIVEL_2: "5",
 }
+
+# Decreto 12.435/2025, Anexo III, seção C (docs/decreto-12435-2025.pdf, p. 16), lido em 2026-11-14:
+# item 17, nível 2 = "para cada cinco veículos produzidos"; item 18, nível 1 = "para cada dez
+# veículos produzidos". Fecha a lacuna L-01 (achado A1 da revisão). Os valores coincidem com a
+# leitura anterior; a vigência nova registra na trilha a conferência e o fundamento.
+FUNDAMENTO_RM = "Decreto 12.435/2025, Anexo III, seção C, itens 17 (nível 2: cinco) e 18 (nível 1: dez)"
+CONFERENCIA_DECRETO = date(2026, 11, 14)
+VIGENCIAS_ADICIONAIS: tuple[tuple[ChaveParametro, str, date, str], ...] = (
+    (ChaveParametro.RM_NIVEL_1, "10", CONFERENCIA_DECRETO, FUNDAMENTO_RM),
+    (ChaveParametro.RM_NIVEL_2, "5", CONFERENCIA_DECRETO, FUNDAMENTO_RM),
+)
 
 
 @dataclass(frozen=True)
@@ -122,23 +132,20 @@ def _dados_existentes(session: Session) -> DadosDemo | None:
 
 
 def _garantir_parametros(session: Session, admin: Usuario) -> None:
-    """Grava os parâmetros que ainda não existem. Um banco semeado antes da migração 0003 ganha
-    aqui o RM por nível (RF-18, art. 3º §3º), com evento na trilha como os demais."""
-    existentes = set(session.scalars(select(ConfigParametro.chave)).all())
-    for chave, valor in PARAMETROS.items():
-        if chave in existentes:
+    """Grava os parâmetros e as vigências que ainda não existem, com evento na trilha. Um banco
+    semeado antes da migração 0003 ganha aqui o RM por nível (RF-18, art. 3º §3º)."""
+    existentes = set(session.execute(select(ConfigParametro.chave, ConfigParametro.vigente_desde)).tuples())
+    vigencias = [(chave, valor, VIGENCIA_PORTARIA, None) for chave, valor in PARAMETROS.items()]
+    for chave, valor, desde, fundamento in [*vigencias, *VIGENCIAS_ADICIONAIS]:
+        if (chave, desde) in existentes:
             continue
-        par = ConfigParametro(chave=chave, valor=valor, vigente_desde=VIGENCIA_PORTARIA)
+        par = ConfigParametro(chave=chave, valor=valor, vigente_desde=desde)
         session.add(par)
         session.flush()
-        registrar_evento(
-            session,
-            admin,
-            "PARAMETRO_CONFIGURADO",
-            "config_parametro",
-            par.id,
-            {"chave": chave, "valor": valor, "vigente_desde": VIGENCIA_PORTARIA},
-        )
+        payload: dict[str, object] = {"chave": chave, "valor": valor, "vigente_desde": desde}
+        if fundamento:
+            payload["fundamento"] = fundamento
+        registrar_evento(session, admin, "PARAMETRO_CONFIGURADO", "config_parametro", par.id, payload)
 
 
 def semear(session: Session) -> DadosDemo:

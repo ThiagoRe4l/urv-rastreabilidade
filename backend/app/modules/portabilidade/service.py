@@ -763,7 +763,7 @@ class _Importacao:
             raise _Rejeicao("CHASSI_INVALIDO", "Há chassi vazio ou com mais de 30 caracteres.")
         dia = data_operacao(c.registrado_em)
         try:
-            rm = rm_vigente(s, mmv.nivel, dia)  # art. 3º §3º; L-01
+            rm = rm_vigente(s, mmv.nivel, dia)  # art. 3º §3º; Decreto 12.435/2025, Anexo III 17 e 18
             pb = preco_base_vigente(s, dia)
         except ErroNegocio as exc:
             raise _Rejeicao(exc.codigo, exc.detail) from exc

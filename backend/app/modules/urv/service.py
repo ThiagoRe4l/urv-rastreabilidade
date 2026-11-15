@@ -387,7 +387,7 @@ def simular_consumo(
     mmv = _mmv_do_fabricante(session, dados.mmv_id, fabricante_id)
     hoje = data_operacao(agora)
     pb = preco_base_vigente(session, hoje)
-    rm = rm_vigente(session, mmv.nivel, hoje)  # RF-18, art. 3º §3º; L-01
+    rm = rm_vigente(session, mmv.nivel, hoje)  # RF-18, art. 3º §3º; Decreto 12.435/2025, Anexo III 17 e 18
     if dados.periodo is not None:  # RF-18, art. 3º §3º: no acumulado do MMV no período
         calculo = debito_no_periodo(
             session, fabricante_id, mmv, dados.periodo, dados.quantidade, dados.preco_medio, rm=rm, pb=pb
@@ -458,7 +458,7 @@ def registrar_consumo(
         dados.periodo,
         len(chassis),
         dados.preco_medio,
-        rm=rm_vigente(session, mmv.nivel, hoje),  # L-01
+        rm=rm_vigente(session, mmv.nivel, hoje),  # Decreto 12.435/2025, Anexo III 17 e 18
         pb=preco_base_vigente(session, hoje),  # art. 3º §5º
     )
     debito, rm, pb = calculo.debito, calculo.rm, calculo.pb

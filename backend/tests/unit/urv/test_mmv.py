@@ -50,7 +50,7 @@ def test_mmv_novo_produz_efeitos_na_data_do_cadastro(client, auth, relogio, dado
     assert mmv["ncm"] == "87032100"  # gravado só com dígitos
     assert mmv["percentual_reciclabilidade"] == "85.50"  # Decimal trafega como string
     assert mmv["efeitos_a_partir_de"] == "2026-11-13"  # RF-04, art. 5º §2º II
-    assert mmv["rm"] == 10  # nível 1: valor do seed em config_parametro, pendente do decreto (L-01)
+    assert mmv["rm"] == 10  # nível 1: Decreto 12.435/2025, Anexo III, item 18 (dez veículos)
     assert mmv["status"] == "ATIVO"
 
     evento = db_session.scalar(
@@ -67,7 +67,7 @@ def test_mmv_ja_comercializado_produz_efeitos_no_ano_seguinte(client, auth, relo
     r = client.post(MMVS, json=_corpo(nivel=2, ja_comercializado=True), headers=auth(EMAIL_FABRICANTE))
     assert r.status_code == 201, r.text
     assert r.json()["efeitos_a_partir_de"] == "2027-01-01"  # RF-04, art. 5º §2º I
-    assert r.json()["rm"] == 5  # nível 2: valor do seed em config_parametro (L-01)
+    assert r.json()["rm"] == 5  # nível 2: Decreto 12.435/2025, Anexo III, item 17 (cinco veículos)
 
 
 def test_data_do_cadastro_e_a_de_brasilia(client, auth, relogio) -> None:

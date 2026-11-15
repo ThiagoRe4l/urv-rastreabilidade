@@ -1,7 +1,8 @@
 """Funções puras do livro de URV: débito e prazos. Sem banco, sem relógio.
 
 O RM de cada nível não está aqui: é parâmetro com vigência em `config_parametro`
-(`RM_NIVEL_1`, `RM_NIVEL_2`), lido por `app.core.configuracao.rm_vigente` (lacuna L-01).
+(`RM_NIVEL_1`, `RM_NIVEL_2`), lido por `app.core.configuracao.rm_vigente`: nível 1 = 10 e nível 2 = 5
+(Decreto 12.435/2025, Anexo III, seção C, itens 18 e 17).
 
 Tudo aqui usa `Decimal` e `ROUND_HALF_UP` (regra do projeto; Anexo I, item 5).
 """
@@ -14,7 +15,7 @@ from decimal import Decimal, localcontext
 from app.core.decimais import quantizar
 
 # Art. 3º §3º: "conforme item 17 ou 18 do Anexo III ao Decreto nº 12.435, de 2025 (5 ou 10,
-# respectivamente)". Os dois valores possíveis são certos; qual nível usa qual é parâmetro (L-01).
+# respectivamente)". Item 17 = nível 2 = cinco; item 18 = nível 1 = dez (decreto, Anexo III, seção C).
 RMS_DA_PORTARIA: frozenset[int] = frozenset({5, 10})
 
 _PERIODO = re.compile(r"^(\d{4})-(0[1-9]|1[0-2])$")

@@ -59,11 +59,31 @@ Origem: Portaria GM/MDIC nº 325, de 6 de novembro de 2026 (`portaria-325-2026.p
 | RNF-11 | Dados do programa pertencem ao MDIC | Art. 19 §3º | Sem uso secundário |
 | RNF-12 | Requisitos societários do operador | Art. 20 I, II e XII; art. 21 §3º | Não é requisito de software |
 
+## RM por nível: texto do Decreto 12.435/2025
+
+O art. 3º §3º da portaria define RM como o "número de veículos que cumpram o requisito, conforme item 17 ou 18 do Anexo III ao Decreto nº 12.435, de 2025 (5 ou 10, respectivamente)". O decreto está em `docs/decreto-12435-2025.pdf` (cabeçalho: Presidência da República, Casa Civil; "Decreto nº 12.435, de 15 de abril de 2025"), juntado em 2026-11-14. Anexo III, seção C, "Compensação antecipada dos materiais pela reciclagem dos veículos", p. 16:
+
+> 16. Ficam definidos, até 31 de dezembro de 2031, os seguintes níveis de compensação antecipada de materiais pela reciclagem de veículos, para veículos das categorias M1 e N1, conforme norma ABNT NBR 13776:2021, de que trata o art. 2º, § 5º, inciso V, da Lei nº 14.902, de 27 de junho de 2024:
+>
+> a) Requisito de Reciclabilidade Veicular Nível 2; e
+>
+> b) Requisito de Reciclabilidade Veicular Nível 1.
+>
+> 17. O atendimento ao nível 2 do requisito de reciclabilidade veicular significa que, para cada cinco veículos produzidos de uma mesma marca/modelo/versão, que cumpram os requisitos estabelecidos no subitem I do item 6 da Seção "B.1" deste Anexo, um veículo em fim de vida, em condições de rodagem, com licenciamento regular, ou equivalente nos termos do item 21, seja previamente destinado pelo fabricante ou importador, a uma empresa de desmontagem e/ou reciclagem veicular, para fins de sucateamento dos veículos.
+>
+> 18. O atendimento ao nível 1 do requisito de reciclabilidade veicular, significa que, para cada dez veículos produzidos de uma mesma marca/modelo/versão, que cumpram os requisitos estabelecidos no subitem I do item 6 da Seção "B.1" deste Anexo, um veículo em fim de vida, em condições de rodagem, com licenciamento regular, ou equivalente nos termos do item 21, seja previamente destinado pelo fabricante ou importador, a uma empresa de desmontagem e/ou reciclagem veicular, para fins de sucateamento dos veículos.
+
+| Nível | Item do Anexo III | Veículos por veículo em fim de vida | RM | Parâmetro |
+| --- | --- | --- | --- | --- |
+| 1 | 18 | dez | 10 | `RM_NIVEL_1` = 10 |
+| 2 | 17 | cinco | 5 | `RM_NIVEL_2` = 5 |
+
+Bate com o "(5 ou 10, respectivamente)" do art. 3º §3º: item 17 = 5, item 18 = 10. O art. 33 da portaria fala em "níveis 1 e 2 [...] previstos nos itens 17 e 18" sem correspondência de ordem; a leitura que o achado A1 da revisão tirou dele não se confirma, e os valores do código estavam certos. O RM continua em `config_parametro`, com nova vigência gravada em 2026-11-14 citando os itens 17 e 18 (lacuna L-01, resolvida). O item 16 limita os níveis às categorias M1 e N1 e a 31/12/2031; isso não está modelado (L-25).
+
 ## Premissas adotadas onde a portaria é omissa
 
 | Tema | Premissa |
 | --- | --- |
-| RM por nível | Parâmetro com vigência em `config_parametro` (`RM_NIVEL_1`, `RM_NIVEL_2`), não constante no código. O seed grava nível 1 = 10 e nível 2 = 5, a leitura anterior à revisão, **sem conferência contra o decreto**: o texto dos itens 16 a 18 do Anexo III do Decreto 12.435/2025 ainda não está em `docs/` (lacuna L-01, aberta). A portaria, lida pelo art. 33 junto com o art. 3º §3º, sugere o inverso (nível 1 = item 17 = RM 5). Trocar a leitura é gravar nova vigência dos dois parâmetros, sem mudar código |
 | Débito de URV | Decimal com duas casas, `ROUND_HALF_UP`, sem arredondar para inteiro. Qv é a quantidade comercializada do MMV no mês (art. 3º §3º; art. 7º): o débito é calculado no acumulado por fabricante, MMV e período, arredondado uma vez, e cada consumo debita a diferença entre o débito do Qv acumulado e o já debitado no período. Registrar um chassi por vez não reduz o débito (achado A3 da revisão) |
 | Pm, RM e Pb no período | Pm é um só por MMV e período (art. 3º §4º): consumo com Pm diferente do primeiro do período é rejeitado (422 `PM_DIVERGENTE_NO_PERIODO`). RM e Pb ficam os do primeiro consumo do período, para o acumulado ser uma conta só, mesmo que a vigência mude no meio do mês |
 | Certificado | Um por chassi |

@@ -11,13 +11,13 @@ pytest tests/conformidade
 404 passed, 0 xfailed, 0 failed
 
 pytest tests/revisao
-9 passed, 1 skipped (A1, aguardando o decreto), 1 xfailed (j, lacuna L-14)
+10 passed, 1 xfailed (j, lacuna L-14)
 
 pytest   (suíte inteira: unitários, conformidade e revisão)
-787 passed, 1 skipped, 1 xfailed
+788 passed, 1 xfailed
 ```
 
-A revisão mostrou que 741 testes verdes conviviam com oito descumprimentos, porque código e testes partiam da mesma leitura. As correções e os testes que mudaram estão em "Correções da revisão independente", no fim deste arquivo.
+A revisão mostrou que 741 testes verdes conviviam com sete descumprimentos confirmados (o oitavo, A1, caiu com o texto do decreto), porque código e testes partiam da mesma leitura. As correções e os testes que mudaram estão em "Correções da revisão independente", no fim deste arquivo.
 
 Rodada anterior, de integração na `main` (2026-11-14), com fundação, fluxo, URV e frontend juntos e todas as rotas do contrato no ar:
 
@@ -62,7 +62,7 @@ Rodada anterior, na branch `feat/qa`, só com a fundação: 87 passed, 317 xfail
 | RF-15 | Certificado só com etapas e evidências completas | `test_rf14_16_laudo_certificado_credito.py::test_rf15_*`; `test_rnf07_antifraude.py::test_rnf07_certificado_sem_evidencia` | 9 (+13) | 0 | passa |
 | RF-16 | Crédito no valor do fator | `test_rf14_16_laudo_certificado_credito.py::test_rf16_*` | 10 | 0 | passa |
 | RF-17 | Transferência direta e única, a fabricante com vínculo | `test_rf17_transferencia.py` | 10 | 0 | passa |
-| RF-18 | Consumo por chassi e cálculo do débito no acumulado do MMV no período | `test_rf18_20_consumo.py::test_rf18_*`; `tests/revisao::test_a_*`, `test_b_*`, `test_i_*` | 24 (+3) | 1 | parcial: o RM por nível depende do Decreto 12.435/2025 (L-01); `test_a_rm_conforme_o_decreto` em skip |
+| RF-18 | Consumo por chassi e cálculo do débito no acumulado do MMV no período | `test_rf18_20_consumo.py::test_rf18_*`; `tests/revisao::test_a_*`, `test_b_*`, `test_i_*` | 24 (+4) | 0 | passa. RM por nível conferido no Decreto 12.435/2025, Anexo III, itens 17 e 18 (L-01 resolvida) |
 | RF-19 | Saldo negativo: bloqueio e exceção até 31/12/2027 | `test_rf18_20_consumo.py::test_rf19_*` | 7 | 0 | passa |
 | RF-20 | Prazo de reporte no décimo dia útil | `test_rf18_20_consumo.py::test_rf20_*` | 7 | 0 | passa |
 | RF-21 | Unicidade de chassi em fim de vida (VIN) e de chassi novo; Renavam e certidão únicos | `test_rf21_unicidade.py`; `tests/revisao::test_d_*`, `test_e_*` | 9 (+2) | 0 | passa |
@@ -112,7 +112,7 @@ As 13 evidências do caso 1: documento de entrada, certidão de baixa, foto da r
 
 ## Defeitos encontrados
 
-Na rodada de integração, nenhum teste desta matriz mostrou o código descumprindo a portaria. A revisão independente achou oito (A1 a A8), com testes escritos de fora; estão corrigidos ou registrados como lacuna, na seção seguinte.
+Na rodada de integração, nenhum teste desta matriz mostrou o código descumprindo a portaria. A revisão independente achou oito (A1 a A8), com testes escritos de fora. Sete se confirmaram e estão corrigidos ou registrados como lacuna, na seção seguinte; o A1 (RM invertido) não se confirmou quando o Decreto 12.435/2025 foi juntado: o código já usava nível 1 = 10 e nível 2 = 5.
 
 ## Testes alterados na integração
 
@@ -168,7 +168,7 @@ Os dez testes do anexo A de `revisao-independente.md` passavam quando o problema
 | Teste | Achado | Afirma | Situação |
 | --- | --- | --- | --- |
 | `test_a_rm_vem_de_config_parametro` | A1 | O RM de cada nível é parâmetro com vigência; uma vigência nova muda o débito sem mudar código | passa |
-| `test_a_rm_conforme_o_decreto` | A1 | O RM de cada nível é o que os itens 17 e 18 do Anexo III do Decreto 12.435/2025 dizem | skip: o decreto não está em `docs/` (L-01); preencher `RM_DO_DECRETO` quando chegar |
+| `test_a_rm_conforme_o_decreto` | A1 | O RM de cada nível é o que os itens 17 e 18 do Anexo III do Decreto 12.435/2025 dizem | passa: nível 1 = 10, nível 2 = 5, com a vigência citando o decreto na trilha. O achado A1 não se confirmou: o código já usava esses valores |
 | `test_b_fracionar_o_consumo_nao_reduz_o_debito` | A3 | Dez consumos de um chassi debitam o mesmo que um de dez (1,05); Pm diferente no mesmo MMV e período é 422 | passa |
 | `test_c_meta_sobre_o_peso_do_veiculo` | A2 | 10 kg aproveitados de 1.200 kg dão 0,83 % e não atendem a meta; pesagem acima da entrada é 422 | passa |
 | `test_d_renavam_certidao_e_evidencia_nao_se_repetem_entre_chassis` | A7 | Renavam, certidão de baixa e evidência de classificação repetidos em outro chassi são 409 | passa |
@@ -183,7 +183,7 @@ Os dez testes do anexo A de `revisao-independente.md` passavam quando o problema
 
 | Teste | Leitura antiga | O que mudou |
 | --- | --- | --- |
-| `test_rf18_20_consumo.py::test_rf18_calculo_do_debito_por_mmv` (`CASOS_DE_DEBITO`) | Casos por nível, com nível 1 = RM 10 e nível 2 = RM 5 fixos | Casos por RM; o nível de cada RM é lido da configuração vigente (L-01) |
+| `test_rf18_20_consumo.py::test_rf18_calculo_do_debito_por_mmv` (`CASOS_DE_DEBITO`) | Casos por nível, com nível 1 = RM 10 e nível 2 = RM 5 fixos | Casos por RM; o nível de cada RM é lido da configuração vigente. O decreto confirmou depois a tabela antiga (nível 1 = 10, nível 2 = 5); a mudança ficou porque o RM é parâmetro |
 | `test_rf11_13_pesagens_dmr.py::test_rf12_percentual_com_arredondamento_half_up` | 2 kg aproveitados de 3 kg pesados = 66,67 % | O veículo é recebido com 3 kg, para o denominador ser o peso de entrada |
 | `apoio.py::dados_veiculo` | `peso_entrada_kg` 1.200 kg contra `PESAGENS_PADRAO` de 1.000 kg, sem ninguém comparar; certidão de baixa fixa | Entrada de 1.000 kg, igual ao pesado; Renavam e certidão sorteados; evidência de classificação única por veículo (`pdf_unico`) |
 | `tests/unit/fluxo/test_residuos.py`, `test_certificado.py` | Percentual sobre o pesado (70 %, 85 %, 65 %) | Sobre os 1.180,5 kg de entrada (59,30 %, 72,00 %, 55,06 %) |

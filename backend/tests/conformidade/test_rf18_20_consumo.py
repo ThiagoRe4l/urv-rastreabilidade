@@ -45,7 +45,7 @@ def _prazos_de_regularizacao() -> set[str]:
 
 # URV débito = (Qv / RM) × max(1, Pm / Pb), com Pb = 150.000,00; duas casas, ROUND_HALF_UP.
 # Os casos são por RM, não por nível: qual nível usa RM 5 e qual usa RM 10 é parâmetro em
-# config_parametro, pendente do texto do Decreto 12.435/2025 (lacuna L-01; A1 da revisão).
+# config_parametro (nível 1 = 10, nível 2 = 5: Decreto 12.435/2025, Anexo III, itens 18 e 17).
 CASOS_DE_DEBITO = [
     (10, 10, "150000.00", "1.00"),  # 10 veículos no preço base, RM 10: 1 URV
     (10, 3, "150000.00", "0.30"),

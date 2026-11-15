@@ -3,9 +3,10 @@
 No relatório, cada teste passava quando o problema existia. Aqui cada um afirma o comportamento
 corrigido, com o achado e o artigo de origem. Duas exceções documentadas:
 
-- `a`: a correspondência nível → RM depende do texto dos itens 17 e 18 do Anexo III do Decreto
-  12.435/2025, que ainda não está em `docs/` (lacuna L-01). O que dá para afirmar sem o decreto
-  (o RM vem de `config_parametro`) é testado; a afirmação do decreto fica pendente (skip).
+- `a`: o achado A1 (RM invertido) não se confirmou. O Decreto 12.435/2025, Anexo III, seção C,
+  diz no item 17 que o nível 2 é "para cada cinco veículos" e no item 18 que o nível 1 é "para
+  cada dez veículos" (docs/decreto-12435-2025.pdf, p. 16). O teste afirma esse texto e que o RM
+  vem de `config_parametro`.
 - `j`: reescrever a trilha recalculando os hashes só é detectável com ancoragem externa
   (lacuna L-14). O teste afirma a detecção e fica como `xfail` estrito até lá.
 """
@@ -48,9 +49,9 @@ from tests.conformidade.apoio import (
     transferir,
 )
 
-# A1, lacuna L-01: preencher com {1: RM, 2: RM} quando o texto dos itens 17 e 18 do Anexo III do
-# Decreto 12.435/2025 for juntado a docs/ e transcrito em docs/01-requisitos.md.
-RM_DO_DECRETO: dict[int, int] | None = None
+# A1, lacuna L-01 (resolvida): Decreto 12.435/2025, Anexo III, seção C. Item 18: nível 1, "para cada
+# dez veículos produzidos"; item 17: nível 2, "para cada cinco veículos produzidos".
+RM_DO_DECRETO: dict[int, int] | None = {1: 10, 2: 5}
 
 
 def _fab_id(api) -> str:
@@ -66,31 +67,42 @@ def _divergencias(api) -> list[dict]:
 # --- a. A1, RF-18, art. 3º §3º -----------------------------------------------------------------
 
 
-def test_a_rm_vem_de_config_parametro(api, db_session) -> None:
+def test_a_rm_vem_de_config_parametro(api, client, db_session) -> None:
     """O RM por nível é parâmetro com vigência, não constante no código."""
     mmv = criar_mmv(api, nivel=1)
     vigente = mmv["rm"]
     assert vigente in (5, 10)
     outro = 15 - vigente  # o outro valor admitido pelo art. 3º §3º
-    db_session.add(
-        ConfigParametro(chave=ChaveParametro.RM_NIVEL_1, valor=str(outro), vigente_desde=date.today())
-    )
+    # Vigência de amanhã, para não colidir com a gravada hoje pelo seed; o relógio vai junto.
+    amanha = date.today() + timedelta(days=1)
+    db_session.add(ConfigParametro(chave=ChaveParametro.RM_NIVEL_1, valor=str(outro), vigente_desde=amanha))
     db_session.flush()
-    assert ok(api.get("/mmvs", FISCAL))["itens"][0]["rm"] in (5, 10)
-    consumo = ok(consumir(api, FISCAL, mmv["id"], chassis(100)))
+    client.app.dependency_overrides[agora] = lambda: datetime.combine(
+        amanha, datetime.min.time(), UTC
+    ).replace(hour=15)
+    try:
+        assert ok(api.get("/mmvs", FISCAL))["itens"][0]["rm"] == outro
+        consumo = ok(consumir(api, FISCAL, mmv["id"], chassis(100), periodo=amanha.strftime("%Y-%m")))
+    finally:
+        client.app.dependency_overrides.pop(agora, None)
     assert consumo["rm"] == outro
     assert dec(consumo["urv_debito"]) == calcular_debito(100, outro, Decimal("150000"), Decimal("150000"))
 
 
-@pytest.mark.skipif(
-    RM_DO_DECRETO is None,
-    reason="A1 pendente: o Decreto 12.435/2025 não está em docs/; o download do Planalto falhou (L-01)",
-)
-def test_a_rm_conforme_o_decreto(api) -> None:
+@pytest.mark.skipif(RM_DO_DECRETO is None, reason="sem o texto do Decreto 12.435/2025 (L-01)")
+def test_a_rm_conforme_o_decreto(api, db_session) -> None:
     """O RM de cada nível é o que os itens 17 e 18 do Anexo III do Decreto 12.435/2025 dizem."""
     assert RM_DO_DECRETO is not None
     for nivel, rm in RM_DO_DECRETO.items():
         assert criar_mmv(api, nivel=nivel)["rm"] == rm
+    # A vigência que registra a conferência está na trilha, com o fundamento.
+    eventos = db_session.scalars(
+        select(EventoAuditoria).where(EventoAuditoria.tipo == "PARAMETRO_CONFIGURADO")
+    )
+    gravados = {e.payload["chave"]: e.payload for e in eventos if "fundamento" in e.payload}
+    for nivel, rm in RM_DO_DECRETO.items():
+        vigencia = gravados[f"RM_NIVEL_{nivel}"]
+        assert vigencia["valor"] == str(rm) and "Decreto 12.435/2025" in vigencia["fundamento"]
 
 
 # --- b. A3, RF-18, art. 3º §§3º e 4º ------------------------------------------------------------

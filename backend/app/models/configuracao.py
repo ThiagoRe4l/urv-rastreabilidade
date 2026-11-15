@@ -25,7 +25,7 @@ class ConfigFator(ComId, Base):
 
 class ConfigParametro(ComId, Base):
     """Parâmetros com vigência: PRECO_BASE (art. 3º §5º), FIM_SALDO_NEGATIVO (art. 8º §1º),
-    RM_NIVEL_1 e RM_NIVEL_2 (art. 3º §3º; lacuna L-01).
+    RM_NIVEL_1 e RM_NIVEL_2 (art. 3º §3º; Decreto 12.435/2025, Anexo III, itens 17 e 18).
 
     `valor` é texto; quem lê converte (Decimal ou date). Use app.core.configuracao.
     """

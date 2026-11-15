@@ -68,7 +68,7 @@ RM_POR_CHAVE: dict[int, ChaveParametro] = {1: ChaveParametro.RM_NIVEL_1, 2: Chav
 def rm_vigente(session: Session, nivel: int, em: date) -> int:
     """RM do nível do MMV na data. RF-18, art. 3º §3º: "(5 ou 10, respectivamente)".
 
-    Qual nível usa qual valor é parâmetro (lacuna L-01): o seed grava a leitura vigente.
+    Decreto 12.435/2025, Anexo III, seção C: nível 2 = item 17 = cinco; nível 1 = item 18 = dez.
     """
     chave = RM_POR_CHAVE.get(nivel)
     if chave is None:

@@ -76,7 +76,7 @@ def test_multiplicador_de_preco_nunca_abaixo_de_um() -> None:
 
 
 def test_rm_fora_do_art_3_par_3_e_rejeitado() -> None:
-    # Art. 3º §3º: RM é 5 ou 10. Qual nível usa qual vem de config_parametro (L-01).
+    # Art. 3º §3º: RM é 5 ou 10; o de cada nível vem de config_parametro (decreto, Anexo III 17 e 18).
     with pytest.raises(ValueError):
         calcular_debito(10, 7, PB, PB)
 

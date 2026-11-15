@@ -133,7 +133,7 @@ class LancamentoTipo(StrEnum):
 class ChaveParametro(StrEnum):
     PRECO_BASE = "PRECO_BASE"  # art. 3º §5º
     FIM_SALDO_NEGATIVO = "FIM_SALDO_NEGATIVO"  # art. 8º §1º
-    # RM do art. 3º §3º por nível do MMV. Parâmetro, não constante: o texto dos itens 17 e 18 do
-    # Anexo III do Decreto 12.435/2025 ainda não foi juntado ao projeto (lacuna L-01).
+    # RM do art. 3º §3º por nível do MMV, com vigência. Decreto 12.435/2025, Anexo III, seção C:
+    # item 17, nível 2 = cinco veículos; item 18, nível 1 = dez veículos (L-01, resolvida).
     RM_NIVEL_1 = "RM_NIVEL_1"
     RM_NIVEL_2 = "RM_NIVEL_2"
