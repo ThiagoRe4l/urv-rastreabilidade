@@ -10,7 +10,7 @@ A hipótese se confirmou. Há quatro achados em que o código e os testes de con
 
 | # | Achado | Efeito | Evidência |
 | --- | --- | --- | --- |
-| A1 | RM por nível está invertido em relação ao texto da própria portaria | O débito de URV de todo MMV sai pela metade (nível 1) ou em dobro (nível 2) | `urv/calculo.py:15`; art. 3º §3º + art. 33; teste `a` |
+| A1 | RM por nível está invertido em relação ao texto da própria portaria (não confirmado; ver desfecho do achado A1) | O débito de URV de todo MMV sai pela metade (nível 1) ou em dobro (nível 2) | `urv/calculo.py:15`; art. 3º §3º + art. 33; teste `a` |
 | A2 | A meta de aproveitamento é calculada sobre o peso pesado, não sobre o peso do veículo | Pesar 10 kg de um carro de 1.200 kg dá "100 %, atende a meta" | `residuos/service.py:27-40`; art. 18 §5º; teste `c` |
 | A3 | O débito é arredondado por lote que o próprio fabricante escolhe | Registrar um chassi por consumo reduz o débito em até 4,8 % (nível 1) | `urv/service.py:383`; art. 3º §§1º e 3º; teste `b` |
 | A4 | A "imutabilidade verificável" cobre só a trilha; as tabelas de negócio são editáveis sem que a verificação perceba | Editar `urv_credito.quantidade` antes da transferência entrega 1,00 URV por um veículo de 0,38, e `/auditoria/verificar` responde "íntegra" | `auditoria/service.py:144-167`; art. 20 V; art. 24 I; teste `f` |
@@ -138,7 +138,7 @@ A fórmula da imagem no PDF é URV_débito = (Qv / RM) × max(1, Pm / Pb), com P
 | 10 | 10 | 157.400 | 1 × 1,04933 = 1,0493 → 1,05 | 1.05 ✔ |
 | 1 | 10 | 157.400 | 0,1 × 1,04933 = 0,10493 → 0,10 | 0.10 (ver A3) |
 
-A aritmética está certa. O que está errado é o RM associado a cada nível (A1) e a unidade sobre a qual a fórmula é aplicada (A3).
+A aritmética está certa. O que está errado é o RM associado a cada nível (A1) (não confirmado; ver desfecho do achado A1) e a unidade sobre a qual a fórmula é aplicada (A3).
 
 ### Prazos
 
